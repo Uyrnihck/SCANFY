@@ -151,5 +151,5 @@ Free to use, modify and share. Provided "as is", without warranty of any kind.
 
 ---
 
-<p align="center"><b>Long live the Hackers of Brazil</b><br><i>Viva os Hacker do Brasil</i> 🇧🇷</p>
+<p align="center"><b>Long live the Hackers of Brazil</b><br><i>Viva os Hackers do Brasil</i> 🇧🇷</p>
 
