@@ -1,0 +1,28 @@
+# SCANFY v4 dependencies  ->  pip install -r requirements_scanfy.txt
+#
+# SCANFY uses "progressive enhancement": it runs with whatever is installed and
+# gracefully degrades when something is missing. Only `rich` is strictly
+# required for the interface. Everything else unlocks more capability.
+
+# --- Required (terminal interface) ---
+rich>=13.0
+
+# --- Strongly recommended ---
+requests>=2.28              # HTTP/HTTPS fingerprinting, UPnP descriptions, public IP
+mac-vendor-lookup>=0.1.12   # full IEEE OUI vendor database (offline after first sync)
+psutil>=5.9                 # real interface / subnet-mask detection
+zeroconf>=0.100             # mDNS / Bonjour / DNS-SD device discovery
+dnspython>=2.3              # PTR records, version.bind, DNS fingerprinting
+cryptography>=40.0          # X.509 / TLS certificate parsing
+getmac>=0.9                 # local & remote MAC resolution
+ifaddr>=0.2                 # interface enumeration fallback
+
+# --- Optional power-ups ---
+reportlab>=4.0              # PDF dossier export
+python-nmap>=0.7            # nmap service/OS detection (needs the nmap binary on PATH)
+scapy>=2.5                  # layer-2 ARP scan (needs Npcap on Windows / root on Linux)
+
+# Notes:
+#  * scapy's L2 ARP scan only activates if a pcap provider (Npcap) is present;
+#    otherwise SCANFY falls back to ICMP+TCP+ARP-table discovery automatically.
+#  * python-nmap requires the external `nmap` executable to be installed.
