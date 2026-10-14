@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/33457388/README.md)
+[README.md](https://github.com/user-attachments/files/33457547/README.md)
 <div align="center">
 
 ```
@@ -26,7 +26,7 @@ security dossier** in HTML or PDF, all from **a single Python file**.
 
 <br>
 
-<img src="assets/home.svg" alt="SCANFY Pro home screen: the Command Center and the main menu" width="100%">
+<img src="assets/home.png" alt="SCANFY Pro home screen: the Command Center and the main menu" width="100%">
 
 </div>
 
@@ -479,5 +479,11 @@ Provided "as is", without warranty of any kind. See [`LICENSE`](LICENSE).
 ### 🌿 Know your network. Own your network.
 
 ⭐ If SCANFY Pro was useful, consider starring the repository!
+
+<br>
+
+# 🇧🇷 VIVA OS HACKER DO BRASIL 🇧🇷
+
+### *Long live the hackers of Brazil*
 
 </div>
