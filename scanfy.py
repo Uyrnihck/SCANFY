@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SCANFY - Advanced network scanner, service fingerprinter and security
-reconnaissance dossier generator  ---  SINGLE-FILE EDITION.
+SCANFY - PRO EDITION  ---  network scanner, service fingerprinter and
+security dossier generator (single file).
 
-This one file contains the entire SCANFY suite. It was assembled from the
-modular `scanfyx` package by build_bundle.py: every module's source is embedded
-below in the SCANFY_MODULES table, and a small in-file import loader executes
-them on demand, so this single file behaves exactly like the full package.
+This one file contains the entire suite. It was assembled from the modular
+`scanfyx` package by build_bundle.py: every module's source is embedded below
+in the SCANFY_MODULES table, and a small in-file import loader executes them on
+demand, so this single file behaves exactly like the full package.
 
 Run it:
-    python scanfy.py                 # interactive menu
-    python scanfy.py -p deep -f all  # headless deep scan, all dossier formats
-    python scanfy.py -t 192.168.0.1 -f html   # deep-scan one host -> HTML
-    python scanfy.py --help
+    python scanfy_pro.py                 # interactive menu
+    python scanfy_pro.py -p deep -f all  # headless deep scan, all report formats
+    python scanfy_pro.py --help
 
 Install the optional power-up libraries for full capability:
-    pip install -r requirements_scanfy.txt
+    pip install -r requirements.txt
 
-Legitimate use only: scan networks you own or are explicitly authorized to test.
-Long live the Hackers of Brazil / Viva os Hacker do Brasil.
+Use only on networks you own or are explicitly authorized to test.
 """
 
 import importlib.abc
@@ -104,6 +102,136 @@ __all__ = ["__version__", "VERSION", "BUILD", "CODENAME"]
 '''
 
 # ---------------------------------------------------------------------------
+# module: scanfyx.data
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.data'] = r'''"""Static knowledge bases used by SCANFY (ports, OUI, vulns, HTTP signatures)."""
+
+from . import services, oui_fallback, vuln_db, http_signatures
+
+__all__ = ["services", "oui_fallback", "vuln_db", "http_signatures"]
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.discovery
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.discovery'] = r'''"""
+Host discovery engines.
+
+Each engine returns a mapping ``{ip: info_dict}`` where ``info_dict`` may carry
+keys such as ``mac``, ``method``, ``mdns_name``, ``ttl``, ``latency`` etc. The
+:mod:`orchestrator` merges the outputs of every enabled engine into a single
+deduplicated host set.
+"""
+
+from . import (environment, icmp, tcp, udp, arp, mdns, ssdp, wsd, netbios,
+               orchestrator)
+
+__all__ = ["environment", "icmp", "tcp", "udp", "arp", "mdns", "ssdp", "wsd",
+           "netbios", "orchestrator"]
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.fingerprint
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.fingerprint'] = r'''"""
+Per-service deep fingerprinting.
+
+Each module probes one protocol family and enriches a :class:`Device`:
+
+    http       HTTP/HTTPS headers, title, technologies, security headers
+    tls        X.509 certificate details and TLS version/weaknesses
+    ssh        SSH protocol banner and host-key/algorithm hints
+    snmp       SNMP sysDescr / sysName via community strings
+    smb        SMB dialect / OS / shares (best effort)
+    dns_fp     reverse DNS and extra name records
+    os_detect  OS family from TTL, banners and (optional) nmap
+
+The :mod:`orchestrator` dispatches the right fingerprinters per open port.
+"""
+
+from . import http, tls, ssh, snmp, smb, dns_fp, os_detect, probes, orchestrator
+
+__all__ = ["http", "tls", "ssh", "snmp", "smb", "dns_fp", "os_detect",
+           "probes", "orchestrator"]
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.portscan
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.portscan'] = r'''"""Port scanning, banner grabbing and optional nmap integration."""
+
+from . import scanner, banner, nmap_integration
+
+__all__ = ["scanner", "banner", "nmap_integration"]
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.report
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.report'] = r'''"""
+Dossier reporting.
+
+Turns a :class:`~scanfyx.models.ScanResult` into shareable artefacts:
+
+    charts       self-contained inline SVG charts (no JS/CDN)
+    html         the full styled HTML reconnaissance dossier
+    markdown     a Markdown dossier
+    exporters    JSON / CSV / XML / TXT
+    pdf          a PDF dossier (green theme, requires reportlab)
+    serious_pdf  a formal/sober PDF investigation dossier + data-protection notice
+
+All formats are written to the configured report directory with a timestamped
+filename.
+"""
+
+from . import charts, html, markdown, exporters, pdf, serious_pdf
+
+__all__ = ["charts", "html", "markdown", "exporters", "pdf", "serious_pdf"]
+
+
+FORMATS = {
+    "html": ("HTML dossier", html.export),
+    "markdown": ("Markdown dossier", markdown.export),
+    "json": ("JSON", exporters.export_json),
+    "csv": ("CSV", exporters.export_csv),
+    "xml": ("XML", exporters.export_xml),
+    "txt": ("Text dossier", exporters.export_txt),
+    "pdf": ("PDF dossier", pdf.export),
+    "dossier": ("Formal PDF dossier", serious_pdf.export),
+}
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.security
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.security'] = r'''"""Security analysis: findings, CVE correlation and risk scoring."""
+
+from . import checks, cve, analyzer, scorecard
+
+__all__ = ["checks", "cve", "analyzer", "scorecard"]
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.ui
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.ui'] = r'''"""Rich terminal user interface for SCANFY."""
+
+from . import theme, banner, console, progress, render, menu
+
+__all__ = ["theme", "banner", "console", "progress", "render", "menu"]
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.utils
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.utils'] = r'''"""Low-level utility helpers used across SCANFY."""
+
+from . import netutils, textutils, concurrency
+
+__all__ = ["netutils", "textutils", "concurrency"]
+'''
+
+# ---------------------------------------------------------------------------
 # module: scanfyx.app
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.app'] = r'''"""
@@ -133,10 +261,11 @@ def _check_rich():
         import rich  # noqa
         return True
     except ImportError:
+        from .edition import spec
         sys.stderr.write(
             "SCANFY needs the 'rich' library for its interface.\n"
-            "Install dependencies:  pip install -r requirements_scanfy.txt\n"
-            "(minimally:  pip install rich)\n")
+            "Install dependencies:  pip install -r %s\n"
+            "(minimally:  pip install rich)\n" % spec()["requirements"])
         return False
 
 
@@ -152,6 +281,16 @@ def main(argv=None):
             stream.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+
+    # silence self-signed-cert warnings raised while probing LAN device UIs
+    try:
+        import warnings
+        import urllib3
+        from urllib3.exceptions import InsecureRequestWarning
+        warnings.simplefilter("ignore", InsecureRequestWarning)
+        urllib3.disable_warnings(InsecureRequestWarning)
+    except Exception:
+        pass
 
     # enable ANSI on legacy Windows consoles
     try:
@@ -431,19 +570,20 @@ import argparse
 import ipaddress
 import sys
 
-from . import engine, report
+from . import edition, engagement, engine, report
 from .config import ScanConfig, PROFILES
-from .version import __version__, MOTTO_EN
+from .version import __version__
 from .logging_setup import setup_logging
 
 
 def build_parser():
+    s = edition.spec()
     p = argparse.ArgumentParser(
-        prog="scanfy",
-        description="SCANFY - advanced network scanner & security recon dossier",
-        epilog=MOTTO_EN)
+        prog=s["output"].rsplit(".", 1)[0],
+        description=f"{edition.full_name()} - {s['tagline']}",
+        epilog=edition.epilog())
     p.add_argument("--version", action="version",
-                   version=f"SCANFY v{__version__}")
+                   version=f"{edition.full_name()} v{__version__}")
     p.add_argument("-i", "--interactive", action="store_true",
                    help="force the interactive menu (default when no scan args)")
     p.add_argument("-p", "--profile", choices=list(PROFILES.keys()),
@@ -457,6 +597,9 @@ def build_parser():
     p.add_argument("-f", "--format", metavar="FMT", action="append",
                    choices=list(report.FORMATS.keys()) + ["all"],
                    help="report format(s) to write (repeatable); e.g. -f html -f json")
+    p.add_argument("--lang", metavar="CODE",
+                   help="language of the PDF dossiers: en, pt, es, fr, de, it "
+                        "(default: the last one used, else en)")
     p.add_argument("--ports", metavar="LIST",
                    help="custom comma-separated port list (implies --profile custom set)")
     p.add_argument("--no-public-ip", action="store_true",
@@ -465,8 +608,28 @@ def build_parser():
                    help="skip the security analysis stage")
     p.add_argument("--nmap", action="store_true",
                    help="use nmap for service/OS detection (single-host, if installed)")
+    p.add_argument("--no-kev", action="store_true",
+                   help="skip CISA KEV known-exploited enrichment")
+    p.add_argument("--cve-online", action="store_true",
+                   help="query NVD online for CPE->CVE hits (needs internet; slower)")
+    p.add_argument("--nvd-api-key", metavar="KEY",
+                   help="NVD API key (optional; raises the online lookup rate limit)")
     p.add_argument("--update-oui", action="store_true",
                    help="refresh the MAC vendor database and exit")
+    p.add_argument("--update-kev", action="store_true",
+                   help="refresh the CISA KEV known-exploited catalog cache and exit")
+    if edition.feature("engagement"):
+        g = p.add_argument_group(
+            "engagement (required for headless scans)",
+            "SCANFY Pro only scans networks you are authorized in writing to test.")
+        g.add_argument("--client", metavar="NAME", help="client / organization")
+        g.add_argument("--operator", metavar="NAME", help="your name (the operator)")
+        g.add_argument("--auth-ref", metavar="REF",
+                       help="authorization reference (contract / work order / ticket)")
+        g.add_argument("--scope", metavar="CIDRS",
+                       help="authorized scope, comma-separated (default: the target)")
+        g.add_argument("--authorized", action="store_true",
+                       help="attest that you hold written authorization for the scope")
     p.add_argument("-q", "--quiet", action="store_true",
                    help="minimal output (headless)")
     p.add_argument("-v", "--verbose", action="store_true",
@@ -480,12 +643,24 @@ def _headless(args):
     from .ui.progress import RichProgress
 
     cfg = ScanConfig().apply_profile(args.profile)
+    cfg.geoip_public = edition.spec()["defaults"]["geoip_public"]
     if args.output_dir:
         cfg.report_dir = args.output_dir
     if args.no_public_ip:
         cfg.geoip_public = False
     if args.no_security:
         cfg.security = False
+    if args.no_kev:
+        cfg.kev = False
+    if args.cve_online:
+        cfg.cve_online = True
+    if args.nvd_api_key:
+        cfg.nvd_api_key = args.nvd_api_key
+    if args.lang:
+        code = _lang_or_exit(args.lang)
+        if code is None:
+            return 2
+        cfg.report_lang = code
     if args.ports:
         try:
             cfg.custom_ports = [int(x) for x in args.ports.split(",") if x.strip()]
@@ -496,6 +671,11 @@ def _headless(args):
 
     env = engine.detect_environment(with_public_ip=cfg.geoip_public)
 
+    if edition.feature("engagement"):
+        rc = _headless_engagement(args, env)
+        if rc:
+            return rc
+
     network = None
     if args.network:
         try:
@@ -505,12 +685,24 @@ def _headless(args):
             return 2
 
     progress = None if args.quiet else RichProgress()
+    try:
+        result = _run_headless_scan(args, cfg, env, network, progress)
+    except engagement.ScopeError as exc:
+        print(f"[refused] {exc}", file=sys.stderr)
+        return 2
+    if result is None:
+        return 2
+    return _write_reports(args, cfg, result)
+
+
+def _run_headless_scan(args, cfg, env, network, progress):
+    from .ui import render
     if args.target:
         try:
             ipaddress.ip_address(args.target)
         except ValueError:
             print(f"Invalid target IP: {args.target}", file=sys.stderr)
-            return 2
+            return None
         if progress:
             with progress as pr:
                 result = engine.run_single_host(args.target, cfg, env=env,
@@ -531,7 +723,11 @@ def _headless(args):
                                      scan_type=cfg.profile_label())
         if not args.quiet:
             render.render_result(result, deep=True)
+    return result
 
+
+def _write_reports(args, cfg, result):
+    from .ui.console import console
     fmts = args.format or []
     if "all" in fmts:
         fmts = list(report.FORMATS.keys())
@@ -542,6 +738,7 @@ def _headless(args):
             path = fn(result, cfg)
             if path:
                 written.append(path)
+                engagement.audit("export", format=fmt, path=path)
                 print(f"[saved] {label}: {path}")
         except Exception as exc:
             print(f"[error] {label}: {exc}", file=sys.stderr)
@@ -561,6 +758,16 @@ def main(argv=None):
         print("Done." if ok else "Update failed (needs internet / mac-vendor-lookup).")
         return 0 if ok else 1
 
+    if args.update_kev:
+        from .security import kev
+        print("Refreshing CISA KEV known-exploited catalog…")
+        cat = kev.load(force=True)
+        if cat:
+            print("Done. %d known-exploited CVEs cached." % len(cat))
+            return 0
+        print("Update failed (needs internet).")
+        return 1
+
     headless = bool(args.network or args.target or args.format) and not args.interactive
     if headless:
         return _headless(args)
@@ -568,16 +775,66 @@ def main(argv=None):
     # interactive
     from .ui.menu import InteractiveApp
     cfg = ScanConfig().apply_profile(args.profile)
+    cfg.geoip_public = edition.spec()["defaults"]["geoip_public"]
     if args.output_dir:
         cfg.report_dir = args.output_dir
     if args.no_public_ip:
         cfg.geoip_public = False
+    if args.no_kev:
+        cfg.kev = False
+    if args.cve_online:
+        cfg.cve_online = True
+    if args.nvd_api_key:
+        cfg.nvd_api_key = args.nvd_api_key
+    if args.lang:
+        code = _lang_or_exit(args.lang)
+        if code is None:
+            return 2
+        cfg.report_lang = code
     app = InteractiveApp(config=cfg)
     try:
         app.start()
     except KeyboardInterrupt:
         print("\nInterrupted.")
     return 0
+
+
+def _headless_engagement(args, env):
+    """Pro edition: build the engagement from CLI flags or refuse (exit 2)."""
+    missing = [flag for flag, val in (("--client", args.client),
+                                      ("--operator", args.operator),
+                                      ("--auth-ref", args.auth_ref))
+               if not (val or "").strip()]
+    if not args.authorized:
+        missing.append("--authorized")
+    if missing:
+        print("SCANFY Pro needs an authorized engagement before scanning.\n"
+              "Missing: " + ", ".join(missing) + "\n"
+              "Example: --client \"ACME Ltda\" --operator \"Ana Souza\" "
+              "--auth-ref OS-2026-117 --scope 10.0.0.0/24 --authorized",
+              file=sys.stderr)
+        return 2
+    scope = args.scope or args.target or args.network or str(env.network)
+    try:
+        engagement.start(args.client, args.operator, args.auth_ref, scope,
+                         authorized=True, persist=False)
+    except ValueError as exc:
+        print(f"Invalid engagement: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+def _lang_or_exit(value):
+    """Validate --lang; remember it as the default. None (+ message) if invalid."""
+    from .report import i18n
+    code = i18n.normalize(value)
+    if not code:
+        print("Unknown --lang %r. Choose one of: %s" % (
+            value, ", ".join("%s (%s)" % kv for kv in i18n.LANGS.items())),
+            file=sys.stderr)
+        return None
+    i18n.save_default(code)
+    return code
 '''
 
 # ---------------------------------------------------------------------------
@@ -620,6 +877,9 @@ PROFILES = {
         label="Thorough", port_set="all", udp=True, banners=True,
         http=True, tls=True, snmp=True, smb=True, ssh=True,
         mdns=True, ssdp=True, arp=True, traceroute=True, nmap=True,
+        # deep nmap enrichment on EVERY host: max version intensity, OS guess,
+        # NSE default+banner+vuln scripts.
+        nmap_scripts=True, nmap_aggressive=True, nmap_vuln=True,
     ),
 }
 
@@ -652,10 +912,22 @@ class ScanConfig:
     os_detect: bool = True
     nmap: bool = False
 
+    # nmap deep enrichment (thorough profile)
+    nmap_scripts: bool = False       # NSE default + banner scripts
+    nmap_aggressive: bool = False    # --version-all, --osscan-guess, -T4, traceroute
+    nmap_vuln: bool = False          # NSE "vuln" category scripts
+    nmap_max_workers: int = 4        # concurrent nmap processes
+    nmap_host_timeout: int = 240     # per-host cap (seconds)
+
     # analysis / extras
     security: bool = True
     traceroute: bool = False
     geoip_public: bool = True
+
+    # vulnerability intelligence
+    kev: bool = True             # CISA KEV known-exploited enrichment (offline cache)
+    cve_online: bool = False     # opt-in NVD CPE->CVE lookups (needs internet)
+    nvd_api_key: str = ""        # optional NVD API key (raises the rate limit)
 
     # timeouts / workers
     ping_timeout_ms: int = constants.DEFAULT_PING_TIMEOUT_MS
@@ -668,6 +940,7 @@ class ScanConfig:
 
     # output
     report_dir: str = constants.REPORT_DIR_DEFAULT
+    report_lang: str = ""        # PDF dossier language ("" = last used, else English)
 
     # ---------------------------------------------------------------------
     def apply_profile(self, name):
@@ -688,6 +961,9 @@ class ScanConfig:
         self.arp = prof["arp"]
         self.traceroute = prof["traceroute"]
         self.nmap = prof["nmap"] and constants.HAS_NMAP_BINARY
+        self.nmap_scripts = prof.get("nmap_scripts", False)
+        self.nmap_aggressive = prof.get("nmap_aggressive", False)
+        self.nmap_vuln = prof.get("nmap_vuln", False)
         return self
 
     def profile_label(self):
@@ -754,8 +1030,29 @@ IS_MAC = platform.system().lower() == "darwin"
 PLATFORM = platform.system()
 HOSTNAME = socket.gethostname()
 
+def _win_console_encoding():
+    """
+    Encoding of the output of Windows CLI tools (ipconfig/route/arp/nbtstat/
+    ping). It follows the console code page, which depends on the Windows
+    language (437 US, 850 Western Europe/Brazil, 852 Central Europe, 866
+    Cyrillic, 932 Japanese, 936 Chinese...), so ask Windows instead of guessing.
+    """
+    if not IS_WINDOWS:
+        return "utf-8"
+    try:
+        import codecs
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        cp = k32.GetConsoleOutputCP() or k32.GetOEMCP()
+        enc = "cp%d" % cp
+        codecs.lookup(enc)
+        return enc
+    except Exception:
+        return "cp850"
+
+
 # Console encoding used to decode Windows CLI tools (ipconfig/arp/nbtstat).
-WIN_ENCODING = "cp850"
+WIN_ENCODING = _win_console_encoding()
 
 # ---------------------------------------------------------------------------
 # Filesystem paths
@@ -845,8 +1142,13 @@ def capability_summary():
 
 
 # ---------------------------------------------------------------------------
-# Theme (Minecraft grass green family) - hex, used by rich and HTML
+# Theme - hex colours, used by rich and the dossiers. The values come from the
+# active edition palette (grass green for the classic build); the historic
+# attribute names are kept so every consumer keeps working.
 # ---------------------------------------------------------------------------
+from . import edition as _edition  # noqa: E402  (pure-data module, no cycle)
+
+
 class Palette:
     GRASS = "#6abe30"
     GRASS_LIGHT = "#96dc5a"
@@ -863,11 +1165,28 @@ class Palette:
     PANEL = "#161f13"
 
 
-CHART_COLORS = [
-    "#6abe30", "#4e9120", "#96dc5a", "#3fa7a0", "#c7b53f", "#c77f3f",
-    "#7f6ad0", "#c74f6a", "#4f8fc7", "#9ec16a", "#d08a3f", "#5ac8a0",
-    "#b56ad0", "#d0b76a", "#6ad0a3", "#c76a9e",
-]
+CHART_COLORS = []
+
+
+def refresh_palette():
+    """Re-read the active edition palette into ``Palette`` / ``CHART_COLORS``
+    (in place, so modules that imported them see the change)."""
+    p = _edition.palette()
+    Palette.GRASS = p["primary"]
+    Palette.GRASS_LIGHT = p["light"]
+    Palette.GRASS_DARK = p["dark"]
+    Palette.LEAF = p["accent"]
+    Palette.DIRT = p["muted"]
+    Palette.STONE = p["dim"]
+    Palette.WATER = p["water"]
+    Palette.GOLD = p["gold"]
+    Palette.REDSTONE = p["red"]
+    Palette.WHITE = p["text"]
+    CHART_COLORS[:] = list(p["chart"])
+    return p
+
+
+refresh_palette()
 
 
 # ---------------------------------------------------------------------------
@@ -903,13 +1222,2332 @@ PYTHON_OK = sys.version_info[:2] >= (3, 8)
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.data
+# module: scanfyx.edition
 # ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.data'] = r'''"""Static knowledge bases used by SCANFY (ports, OUI, vulns, HTTP signatures)."""
+SCANFY_MODULES['scanfyx.edition'] = r'''"""
+SCANFY edition settings: identity, colour themes, preferences and wording.
 
-from . import services, oui_fallback, vuln_db, http_signatures
+Each single-file build is locked to one edition (``ACTIVE`` below). This module
+is pure data + tiny helpers: it imports nothing from the rest of the package,
+so ``constants`` can safely import it.
+"""
 
-__all__ = ["services", "oui_fallback", "vuln_db", "http_signatures"]
+import getpass
+import json
+import os
+from datetime import datetime
+
+ACTIVE = "pro"
+
+_BUILT = ACTIVE
+_PREFS_DIR = os.path.join(os.path.expanduser("~"), ".scanfy")
+# each edition keeps its own preferences (name, theme), so a pro copy never
+# picks up the owner's name on a shared machine
+_PREFS_FILES = {"owner": "owner.json", "pro": "pro.json"}
+
+
+# ---------------------------------------------------------------------------
+# Banner
+# ---------------------------------------------------------------------------
+BANNER_BLOCK = r"""
+ ███████╗ ██████╗ █████╗ ███╗   ██╗███████╗██╗   ██╗
+ ██╔════╝██╔════╝██╔══██╗████╗  ██║██╔════╝╚██╗ ██╔╝
+ ███████╗██║     ███████║██╔██╗ ██║█████╗   ╚████╔╝
+ ╚════██║██║     ██╔══██║██║╚██╗██║██╔══╝    ╚██╔╝
+ ███████║╚██████╗██║  ██║██║ ╚████║██║        ██║
+ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝        ╚═╝
+"""
+
+
+# ---------------------------------------------------------------------------
+# Colour palettes. Slot names are semantic; the rich theme keeps its historic
+# style names ("grass", "stone", ...) and maps them onto these slots.
+# ---------------------------------------------------------------------------
+_GRASS_LABEL = "Grass"
+
+PALETTES = {
+    "grass": dict(
+        label=_GRASS_LABEL, mode="dark",
+        primary="#6abe30", light="#96dc5a", dark="#4e9120", accent="#3fa7a0",
+        muted="#966c4a", dim="#7d8c74", gold="#e6c85a", red="#dc5050",
+        water="#4f8fc7", text="#e7f0e0",
+        gradient=["#c4f590", "#96dc5a", "#7fcd45", "#6abe30", "#5aa62a", "#4e9120"],
+        chart=["#6abe30", "#4e9120", "#96dc5a", "#3fa7a0", "#c7b53f", "#c77f3f",
+               "#7f6ad0", "#c74f6a", "#4f8fc7", "#9ec16a", "#d08a3f", "#5ac8a0",
+               "#b56ad0", "#d0b76a", "#6ad0a3", "#c76a9e"]),
+    "neon": dict(
+        label="Neon Synthwave", mode="dark",
+        primary="#ff4fd8", light="#ff9cf0", dark="#a12bd6", accent="#2de2e6",
+        muted="#f9c80e", dim="#8f86ad", gold="#f9c80e", red="#ff5470",
+        water="#5c7cfa", text="#f3eaff",
+        gradient=["#ff4fd8", "#e64cf2", "#c04cf6", "#965cf8", "#5c8cfa", "#2de2e6"]),
+    "ocean": dict(
+        label="Deep Ocean", mode="dark",
+        primary="#3fb6e8", light="#8ad8ff", dark="#1f6fa3", accent="#3fe0b0",
+        muted="#c9a66b", dim="#7f97a6", gold="#e6c85a", red="#e05a5a",
+        water="#3fb6e8", text="#e6f4fb",
+        gradient=["#c8f1ff", "#8ad8ff", "#5cc6f2", "#3fb6e8", "#2b8fc4", "#1f6fa3"]),
+    "ember": dict(
+        label="Ember", mode="dark",
+        primary="#ff8a3d", light="#ffbe7a", dark="#c4501c", accent="#ffd166",
+        muted="#b07a5a", dim="#a08a7c", gold="#ffd166", red="#ff5c5c",
+        water="#4f8fc7", text="#fbeee4",
+        gradient=["#ffe29a", "#ffc47a", "#ffa65a", "#ff8a3d", "#e8642a", "#c4501c"]),
+    "royal": dict(
+        label="Royal Gold", mode="dark",
+        primary="#e6c85a", light="#f7e39a", dark="#a8801f", accent="#b98cff",
+        muted="#c9a0ff", dim="#9a8f7a", gold="#f7e39a", red="#e05a5a",
+        water="#8aa8ff", text="#f7f1e1",
+        gradient=["#fff4c2", "#f7e39a", "#ecd06f", "#e6c85a", "#c9a33a", "#a8801f"]),
+}
+
+_SHARED_CHART = ["#c7b53f", "#c77f3f", "#7f6ad0", "#c74f6a", "#4f8fc7",
+                 "#d08a3f", "#5ac8a0", "#b56ad0", "#d0b76a", "#6ad0a3",
+                 "#c76a9e", "#9ec16a"]
+
+_ALL_THEMES = ["grass", "neon", "ocean", "ember", "royal"]
+_PERSONAL_FEATURES = dict(wifi_watch=True, block=True, dashboard=True, themes=True,
+                          greeting=True, engagement=False, audit=False)
+
+
+# ---------------------------------------------------------------------------
+# Edition specs
+# ---------------------------------------------------------------------------
+EDITIONS = {}
+
+
+# Neutral edition: no personal or authorship data.
+EDITIONS["pro"] = dict(
+    product="SCANFY", badge="PRO EDITION", prompt="pro",
+    tagline="your network · your rules · your command center",
+    doc_title="network security dossier",
+    banner=BANNER_BLOCK, banner_style="diagonal",
+    palette="grass", themes=list(_ALL_THEMES),
+    motto_en="", motto_pt="", flag="",
+    exit_message="Network secured. See you{greet_name}!",
+    usage_note="Use only on networks you own or are authorized to test.",
+    features=dict(_PERSONAL_FEATURES),
+    defaults=dict(geoip_public=True), name_from_os=False,
+    legal="global", output="scanfy_pro.py", requirements="requirements.txt",
+    report_prefix="scanfy_pro_dossier", formal_prefix="scanfy_pro_formal_dossier")
+
+
+# ---------------------------------------------------------------------------
+# Active edition
+# ---------------------------------------------------------------------------
+def key():
+    """The active edition key. A source-tree (standard) build honours the
+    SCANFY_EDITION environment variable for development; locked builds don't."""
+    name = ACTIVE
+    if _BUILT == "standard":
+        name = os.environ.get("SCANFY_EDITION", name) or name
+    if name in EDITIONS:
+        return name
+    return ACTIVE if ACTIVE in EDITIONS else next(iter(EDITIONS))
+
+
+def activate(name):
+    """Switch edition at runtime (tests / development on the source tree only)."""
+    global ACTIVE
+    if _BUILT != "standard":
+        raise RuntimeError("this build is locked to the '%s' edition" % _BUILT)
+    if name not in EDITIONS:
+        raise ValueError("unknown edition: %s" % name)
+    ACTIVE = name
+    _PREFS_CACHE.clear()
+
+
+def spec():
+    return EDITIONS[key()]
+
+
+def feature(name):
+    return bool(spec()["features"].get(name))
+
+
+def product():
+    return spec()["product"]
+
+
+def full_name():
+    s = spec()
+    return s["product"] + ((" · " + s["badge"]) if s["badge"] else "")
+
+
+# ---------------------------------------------------------------------------
+# Per-edition preferences (~/.scanfy/<edition>.json): display name + theme
+# ---------------------------------------------------------------------------
+_PREFS_CACHE = {}
+
+
+def _prefs_path():
+    return os.path.join(_PREFS_DIR, _PREFS_FILES.get(key(), "owner.json"))
+
+
+def _prefs():
+    path = _prefs_path()
+    if _PREFS_CACHE.get("path") != path:
+        data = {}
+        try:
+            with open(path, encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                data = loaded
+        except Exception:
+            pass
+        _PREFS_CACHE.update(path=path, data=data)
+    return _PREFS_CACHE["data"]
+
+
+def _save_prefs(data):
+    path = _prefs_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+        _PREFS_CACHE.update(path=path, data=data)
+        return True
+    except Exception:
+        return False
+
+
+def owner_name():
+    """The user's display name: the saved one, else (owner/classic only) the OS
+    account name. The pro edition stays anonymous until the user sets one."""
+    name = str(_prefs().get("name") or "").strip()
+    if name:
+        return name
+    if not spec().get("name_from_os", True):
+        return ""
+    try:
+        return getpass.getuser() or ""
+    except Exception:
+        return ""
+
+
+def set_owner_name(name):
+    name = (name or "").strip()[:40]
+    if not name:
+        return False
+    data = dict(_prefs())
+    data["name"] = name
+    return _save_prefs(data)
+
+
+# ---------------------------------------------------------------------------
+# Palettes
+# ---------------------------------------------------------------------------
+def available_themes():
+    return [t for t in spec()["themes"] if t in PALETTES]
+
+
+def palette_name():
+    if feature("themes"):
+        chosen = _prefs().get("theme")
+        if chosen in available_themes():
+            return chosen
+    return spec()["palette"]
+
+
+def palette():
+    """The active terminal palette (a copy, with chart colours filled in)."""
+    p = dict(PALETTES[palette_name()])
+    p["name"] = palette_name()
+    if not p.get("chart"):
+        p["chart"] = [p["primary"], p["dark"], p["light"], p["accent"]] + _SHARED_CHART
+    return p
+
+
+def html_palette():
+    """The palette used by documents (HTML/PDF): terminal palette + overrides."""
+    p = palette()
+    p.update(p.pop("html", None) or {})
+    return p
+
+
+def set_palette(name):
+    """Persist a theme choice (editions with themes). Returns True on success."""
+    if not feature("themes") or name not in available_themes():
+        return False
+    data = dict(_prefs())
+    data["theme"] = name
+    return _save_prefs(data)
+
+
+def hex_mix(a, b, t):
+    """Blend hex colour ``a`` towards ``b`` by ``t`` (0..1)."""
+    a = a.lstrip("#")
+    b = b.lstrip("#")
+    ca = [int(a[i:i + 2], 16) for i in (0, 2, 4)]
+    cb = [int(b[i:i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join("%02x" % int(round(x + (y - x) * t)) for x, y in zip(ca, cb))
+
+
+def gradient_at(stops, t):
+    """Colour at position ``t`` (0..1) along a list of hex gradient stops."""
+    if not stops:
+        return "#ffffff"
+    if len(stops) == 1:
+        return stops[0]
+    t = min(1.0, max(0.0, t)) * (len(stops) - 1)
+    i = min(int(t), len(stops) - 2)
+    return hex_mix(stops[i], stops[i + 1], t - i)
+
+
+# ---------------------------------------------------------------------------
+# Wording helpers
+# ---------------------------------------------------------------------------
+def banner_lines():
+    return spec()["banner"].strip("\n").split("\n")
+
+
+def greeting(now=None):
+    hour = (now or datetime.now()).hour
+    if 5 <= hour < 12:
+        part = "Good morning"
+    elif 12 <= hour < 18:
+        part = "Good afternoon"
+    else:
+        part = "Good evening"
+    name = owner_name()
+    return "%s, %s" % (part, name) if name else part
+
+
+def exit_message():
+    name = owner_name()
+    return (spec()["exit_message"].replace("{owner}", name)
+            .replace("{greet_name}", (", " + name) if name else ""))
+
+
+def footer_lines():
+    """Closing lines printed at the end of dossiers."""
+    s = spec()
+    if s["motto_en"]:
+        return [s["motto_en"], s["motto_pt"]]
+    return [s["usage_note"]]
+
+
+def epilog():
+    s = spec()
+    return s["motto_en"] or s["usage_note"]
+
+
+def slugify(text, limit=32):
+    """'ACME Corp. (Matriz)' -> 'acme_corp_matriz' (ASCII-safe file fragment)."""
+    import unicodedata
+    norm = unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode()
+    slug = "".join(ch if ch.isalnum() else "_" for ch in norm.lower()).strip("_")
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug[:limit].strip("_")
+
+
+def report_prefix(kind="dossier", client=""):
+    s = spec()
+    base = s["formal_prefix"] if kind == "formal" else s["report_prefix"]
+    slug = slugify(client)
+    return base + ("_" + slug if slug else "")
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.engagement
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.engagement'] = r'''"""
+Engagement / authorization records and audit trail (SCANFY Pro).
+
+Scanning someone else's network is only legitimate with their authorization. The
+professional edition therefore refuses to scan until the operator records an
+*engagement*: who the client is, who is operating, the reference of the written
+authorization (contract, work order, ticket) and the authorized scope (CIDR/IP
+list). The engine calls :func:`check_target` before any active scan, so every
+entry point (menu, CLI, single host, monitor) is covered and anything outside
+the declared scope is refused.
+
+Every engagement start, scan, refusal and export is appended to an audit log
+(``~/.scanfy/audit.jsonl``, one JSON object per line) so the work can be
+accounted for afterwards.
+
+When the active edition does not enable engagements, all of this is a no-op.
+"""
+
+import ipaddress
+import json
+import os
+import threading
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from typing import List
+
+from . import constants, edition
+from .logging_setup import get_logger
+
+log = get_logger("engagement")
+
+ENGAGEMENT_PATH = os.path.join(constants.CONFIG_DIR, "engagement.json")
+AUDIT_PATH = os.path.join(constants.CONFIG_DIR, "audit.jsonl")
+
+_lock = threading.Lock()
+_current = None
+
+
+class ScopeError(Exception):
+    """Raised when a scan is attempted without authorization or out of scope."""
+
+
+@dataclass
+class Engagement:
+    client: str
+    operator: str
+    auth_ref: str
+    scope: List[str] = field(default_factory=list)
+    authorized: bool = False
+    started: str = ""
+    notes: str = ""
+
+    def networks(self):
+        nets = []
+        for s in self.scope:
+            try:
+                nets.append(ipaddress.ip_network(s, strict=False))
+            except ValueError:
+                continue
+        return nets
+
+    def covers(self, target):
+        """True if ``target`` (IP, CIDR string or ip_network) is inside scope."""
+        try:
+            if isinstance(target, (ipaddress.IPv4Network, ipaddress.IPv6Network)):
+                tnet = target
+            else:
+                tnet = ipaddress.ip_network(str(target).strip(), strict=False)
+        except ValueError:
+            return False
+        for net in self.networks():
+            if net.version != tnet.version:
+                continue
+            if tnet.subnet_of(net):
+                return True
+        return False
+
+    def scope_str(self):
+        return ", ".join(self.scope) if self.scope else "-"
+
+    def slug(self):
+        return edition.slugify(self.client)
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(client=str(data.get("client", "")),
+                   operator=str(data.get("operator", "")),
+                   auth_ref=str(data.get("auth_ref", "")),
+                   scope=[str(s) for s in data.get("scope", []) or []],
+                   authorized=bool(data.get("authorized", False)),
+                   started=str(data.get("started", "")),
+                   notes=str(data.get("notes", "")))
+
+
+# ---------------------------------------------------------------------------
+# Scope parsing
+# ---------------------------------------------------------------------------
+def parse_scope(text):
+    """
+    Parse a comma/space separated list of CIDRs / IPs into normalised strings.
+    Raises ValueError on an invalid entry or an empty list. Refuses scopes that
+    are absurdly broad for a LAN engagement (anything wider than a /8).
+    """
+    items = [t for t in str(text or "").replace(";", ",").replace(" ", ",").split(",")
+             if t.strip()]
+    if not items:
+        raise ValueError("the scope is empty")
+    out = []
+    for item in items:
+        net = ipaddress.ip_network(item.strip(), strict=False)
+        if net.version == 4 and net.prefixlen < 8:
+            raise ValueError("scope %s is too broad (wider than /8)" % net)
+        if str(net) not in out:
+            out.append(str(net))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Session state
+# ---------------------------------------------------------------------------
+def required():
+    return edition.feature("engagement")
+
+
+def current():
+    return _current
+
+
+def start(client, operator, auth_ref, scope, authorized, notes="", persist=True):
+    """Validate and activate an engagement. Raises ValueError on bad input."""
+    global _current
+    client = (client or "").strip()
+    operator = (operator or "").strip()
+    auth_ref = (auth_ref or "").strip()
+    if not client:
+        raise ValueError("client / organization is required")
+    if not operator:
+        raise ValueError("operator name is required")
+    if not auth_ref:
+        raise ValueError("an authorization reference is required")
+    if not authorized:
+        raise ValueError("written authorization was not confirmed")
+    scope_list = scope if isinstance(scope, list) else parse_scope(scope)
+    scope_list = parse_scope(",".join(scope_list))
+    eng = Engagement(client=client, operator=operator, auth_ref=auth_ref,
+                     scope=scope_list, authorized=True,
+                     started=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                     notes=(notes or "").strip())
+    _current = eng
+    if persist:
+        _save(eng)
+    audit("engagement_start", scope=eng.scope)
+    return eng
+
+
+def resume(eng):
+    """Re-activate a previously saved engagement."""
+    global _current
+    if not eng or not eng.authorized:
+        raise ValueError("that engagement is not authorized")
+    _current = eng
+    audit("engagement_resume", scope=eng.scope)
+    return eng
+
+
+def close(persist=True):
+    global _current
+    if _current is not None:
+        audit("engagement_close")
+    _current = None
+    if persist:
+        try:
+            os.remove(ENGAGEMENT_PATH)
+        except OSError:
+            pass
+
+
+def load_saved():
+    try:
+        with open(ENGAGEMENT_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        eng = Engagement.from_dict(data)
+        return eng if eng.client and eng.scope else None
+    except Exception:
+        return None
+
+
+def _save(eng):
+    try:
+        tmp = ENGAGEMENT_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(eng.to_dict(), f, indent=2, ensure_ascii=False)
+        os.replace(tmp, ENGAGEMENT_PATH)
+    except Exception as exc:
+        log.debug("engagement save failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Enforcement
+# ---------------------------------------------------------------------------
+def check_target(target, action="scan"):
+    """
+    Raise :class:`ScopeError` unless an authorized engagement covers ``target``.
+    No-op in editions that do not require engagements.
+    """
+    if not required():
+        return
+    eng = _current
+    if eng is None or not eng.authorized:
+        audit("refused", action=action, target=str(target),
+              reason="no active engagement")
+        raise ScopeError("No active authorized engagement. Record one first "
+                         "(menu [E], or --client/--operator/--auth-ref/--scope/"
+                         "--authorized on the command line).")
+    if not eng.covers(target):
+        audit("scope_violation", action=action, target=str(target))
+        raise ScopeError("%s is OUTSIDE the authorized scope (%s) of the '%s' "
+                         "engagement. Not scanning." % (target, eng.scope_str(),
+                                                        eng.client))
+
+
+def stamp(meta):
+    """Copy the active engagement onto a ScanMeta (for reports)."""
+    eng = _current
+    if eng is None or not required():
+        return meta
+    meta.client = eng.client
+    meta.operator = eng.operator
+    meta.auth_ref = eng.auth_ref
+    meta.scope = list(eng.scope)
+    return meta
+
+
+# ---------------------------------------------------------------------------
+# Audit trail
+# ---------------------------------------------------------------------------
+def audit(event, **details):
+    """Append one event to the audit log (pro edition). Never raises."""
+    if not edition.feature("audit"):
+        return False
+    eng = _current
+    rec = {"ts": datetime.now().isoformat(timespec="seconds"),
+           "edition": edition.key(), "event": event,
+           "station": constants.HOSTNAME}
+    if eng is not None:
+        rec.update(client=eng.client, operator=eng.operator, auth_ref=eng.auth_ref)
+    rec.update(details)
+    try:
+        line = json.dumps(rec, ensure_ascii=False, default=str)
+        with _lock:
+            with open(AUDIT_PATH, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        return True
+    except Exception as exc:
+        log.debug("audit write failed: %s", exc)
+        return False
+
+
+def read_audit(limit=20):
+    """Return the last ``limit`` audit records (newest last)."""
+    try:
+        with open(AUDIT_PATH, encoding="utf-8") as f:
+            lines = f.readlines()[-limit:]
+    except Exception:
+        return []
+    out = []
+    for ln in lines:
+        try:
+            out.append(json.loads(ln))
+        except Exception:
+            continue
+    return out
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.engine
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.engine'] = r'''"""
+The SCANFY scan pipeline.
+
+Ties every subsystem together into one flow:
+
+    environment -> discovery -> port scan -> service fingerprint ->
+    classification -> security analysis -> topology -> ScanResult
+
+A ``progress`` object (duck-typed with ``phase(name, total)`` and ``step()``)
+receives feedback for the UI; :class:`NullProgress` is used for headless runs.
+"""
+
+import platform
+import time
+
+from . import constants, classify, topology, edition, engagement
+from .config import ScanConfig
+from .discovery import environment, orchestrator as discovery_orch
+from .fingerprint import orchestrator as fp_orch
+from .fingerprint import os_detect
+from .logging_setup import get_logger
+from .models import ScanResult, ScanMeta, now_str
+from .portscan import scanner, nmap_integration
+from .security import analyzer
+from .discovery import arp as arp_disc
+
+log = get_logger("engine")
+
+
+class NullProgress:
+    def phase(self, name, total):
+        pass
+
+    def step(self, n=1):
+        pass
+
+    def done(self):
+        pass
+
+
+def engine_tag():
+    return constants.capability_summary()
+
+
+def detect_environment(with_public_ip=True):
+    return environment.detect(with_public_ip=with_public_ip)
+
+
+def run_scan(config, env=None, network=None, progress=None, stop_event=None,
+             scan_type="Deep"):
+    """Full network scan. Returns a populated :class:`ScanResult`."""
+    progress = progress or NullProgress()
+    start = time.monotonic()
+
+    if env is None:
+        env = detect_environment(with_public_ip=config.geoip_public)
+    net = network or env.network
+
+    # 0. authorization gate (pro edition): refuse before any packet is sent
+    engagement.check_target(net, action=scan_type)
+    engagement.audit("scan_start", scan_type=scan_type, target=str(net),
+                     profile=config.profile)
+
+    # 1. discovery
+    devices, disc_report = discovery_orch.run(
+        net, config, env, progress=progress, stop_event=stop_event)
+
+    # 2. port scan
+    ports = scanner.select_ports(config)
+    scanner.scan_hosts(devices, ports, config, progress=progress,
+                       stop_event=stop_event)
+
+    # 3. service fingerprinting
+    fp_orch.enrich(devices, config, env, progress=progress)
+
+    # 3.5 deep nmap enrichment on every host (thorough profile)
+    if config.nmap and nmap_integration.available():
+        _nmap_enrich_all(devices, config, progress=progress, stop_event=stop_event)
+
+    # 3.6 optional online CPE -> CVE enrichment (opt-in; needs internet)
+    if getattr(config, "cve_online", False):
+        try:
+            from .security import nvd
+            nvd.enrich(devices, config, progress=progress)
+        except Exception as exc:
+            log.debug("nvd enrichment failed: %s", exc)
+
+    # 4. classification
+    classify.classify_all(devices)
+
+    # 5. security analysis
+    if config.security:
+        kev_cat = _load_kev(config)
+        if progress:
+            progress.phase("Security analysis", len(devices))
+        for d in devices:
+            analyzer.analyze_device(d, kev=kev_cat)
+            if progress:
+                progress.step()
+
+    # 6. build result
+    elapsed = round(time.monotonic() - start, 1)
+    meta = _build_meta(config, env, net, devices, disc_report, elapsed, scan_type)
+    result = ScanResult(devices, meta)
+    topology.annotate_hop_counts(result)
+    if progress:
+        progress.done()
+    log.info("scan complete: %d devices, grade %s in %ss",
+             len(devices), result.risk_grade(), elapsed)
+    engagement.audit("scan_complete", scan_type=scan_type, target=str(net),
+                     devices=len(devices), grade=result.risk_grade(),
+                     findings=result.severity_counts(), duration=elapsed)
+    return result
+
+
+def run_quick_scan(config, env=None, network=None, progress=None, stop_event=None):
+    """A fast pass: discovery + light identification, no deep fingerprinting."""
+    quick_cfg = ScanConfig().apply_profile("fast")
+    quick_cfg.http = False
+    quick_cfg.tls = False
+    quick_cfg.snmp = False
+    quick_cfg.udp = False
+    quick_cfg.report_dir = config.report_dir
+    return run_scan(quick_cfg, env=env, network=network, progress=progress,
+                    stop_event=stop_event, scan_type="Quick")
+
+
+def run_wifi_watch(config, env=None, network=None, progress=None, stop_event=None):
+    """
+    WiFi Watch census: focus on the connected devices, extract as much identity
+    as possible (vendor / hostname / NetBIOS / mDNS / type / OS + light service
+    scan) for intruder detection. Lighter than a full scan -- no UDP, no heavy
+    vuln analysis -- so it stays fast and re-runnable. Presence classification
+    (trusted vs unknown) is applied by the caller via ``watch.annotate``.
+    """
+    progress = progress or NullProgress()
+    start = time.monotonic()
+    if env is None:
+        env = detect_environment(with_public_ip=False)
+    net = network or env.network
+    engagement.check_target(net, action="wifi_watch")
+
+    # A focused identity-first config (built on the fast profile).
+    wcfg = ScanConfig().apply_profile("fast")
+    wcfg.report_dir = config.report_dir
+    wcfg.udp = False
+    wcfg.http = True     # web device names / titles help identify a device
+    wcfg.tls = False
+    wcfg.snmp = False
+    wcfg.smb = True      # NetBIOS / SMB host identity
+    wcfg.mdns = True
+    wcfg.ssdp = True
+    wcfg.nmap = False
+
+    devices, disc_report = discovery_orch.run(
+        net, wcfg, env, progress=progress, stop_event=stop_event)
+    ports = scanner.select_ports(wcfg)
+    scanner.scan_hosts(devices, ports, wcfg, progress=progress,
+                       stop_event=stop_event)
+    fp_orch.enrich(devices, wcfg, env, progress=progress)
+    classify.classify_all(devices)
+
+    elapsed = round(time.monotonic() - start, 1)
+    meta = _build_meta(wcfg, env, net, devices, disc_report, elapsed, "WiFi Watch")
+    result = ScanResult(devices, meta)
+    if progress:
+        progress.done()
+    log.info("wifi watch complete: %d devices in %ss", len(devices), elapsed)
+    return result
+
+
+def run_single_host(ip, config, env=None, progress=None, use_nmap=None):
+    """Deep-scan a single host and return a one-device ScanResult."""
+    from .models import Device
+    from .discovery import icmp
+    engagement.check_target(str(ip), action="single_host")
+    engagement.audit("scan_start", scan_type="single_host", target=str(ip),
+                     profile=config.profile)
+    progress = progress or NullProgress()
+    if env is None:
+        env = detect_environment(with_public_ip=False)
+
+    p = icmp.ping_once(ip, config.ping_timeout_ms)
+    macs = arp_disc.read_arp_table()
+    dev = Device(ip=str(ip), mac=macs.get(str(ip), "-"))
+    if p:
+        dev.ttl = p.get("ttl")
+        dev.latency_ms = p.get("latency")
+        dev.discovery_methods = ["icmp"]
+    else:
+        dev.discovery_methods = ["manual"]
+    dev.is_gateway = (str(ip) == env.gateway)
+    dev.is_self = (str(ip) == env.local_ip)
+    devices = [dev]
+
+    ports = scanner.select_ports(config)
+    scanner.scan_hosts(devices, ports, config, progress=progress)
+
+    # optional nmap enrichment (deep: version-all + OS + NSE scripts)
+    if (use_nmap or config.nmap) and nmap_integration.available():
+        if progress:
+            progress.phase("nmap deep scan (service/OS/NSE)", 1)
+        nres = nmap_integration.scan_host(
+            str(ip), ports=dev.open_ports() or None,
+            service_version=True, os_detect=True, aggressive=True,
+            scripts=True, vuln=getattr(config, "nmap_vuln", True),
+            host_timeout=getattr(config, "nmap_host_timeout", 240))
+        if nres:
+            _apply_nmap(dev, nres)
+        if progress:
+            progress.step()
+
+    fp_orch.enrich(devices, config, env, progress=progress)
+
+    # optional online CPE -> CVE enrichment (opt-in; needs internet)
+    if getattr(config, "cve_online", False):
+        try:
+            from .security import nvd
+            nvd.enrich(devices, config, progress=progress)
+        except Exception as exc:
+            log.debug("nvd enrichment failed: %s", exc)
+
+    classify.classify_all(devices)
+    if config.security:
+        analyzer.analyze_device(dev, kev=_load_kev(config))
+
+    meta = ScanMeta(
+        generated=now_str(), scan_type="Single-host (Deep)",
+        profile=config.profile, network=str(ip), local_ip=env.local_ip,
+        gateway=env.gateway, dns=env.dns_servers, methods=dev.discovery_methods,
+        engine=engine_tag(), duration=0.0, count=1,
+        hostname=constants.HOSTNAME, platform=platform.platform())
+    result = ScanResult(devices, _finalize_meta(meta))
+    engagement.audit("scan_complete", scan_type="single_host", target=str(ip),
+                     devices=1, grade=result.risk_grade(),
+                     findings=result.severity_counts())
+    return result
+
+
+def _load_kev(config):
+    """Load the CISA KEV catalog once per scan (cache-first), or None."""
+    if not getattr(config, "kev", True):
+        return None
+    try:
+        from .security import kev as kev_mod
+        cat = kev_mod.load()
+        if cat:
+            log.debug("kev catalog ready: %d known-exploited CVEs", len(cat))
+        return cat
+    except Exception as exc:
+        log.debug("kev load failed: %s", exc)
+        return None
+
+
+def _nmap_enrich_all(devices, config, progress=None, stop_event=None):
+    """Run nmap against every alive host (thorough) and merge the results."""
+    targets = [(d.ip, d.open_ports()) for d in devices
+               if d.open_ports() or d.is_gateway]
+    if not targets:
+        return
+    if progress:
+        progress.phase("nmap deep scan (%d hosts)" % len(targets), len(targets))
+    results = nmap_integration.scan_many(
+        targets,
+        aggressive=getattr(config, "nmap_aggressive", True),
+        scripts=getattr(config, "nmap_scripts", True),
+        vuln=getattr(config, "nmap_vuln", False),
+        os_detect=True,
+        workers=getattr(config, "nmap_max_workers", 4),
+        host_timeout=getattr(config, "nmap_host_timeout", 240),
+        progress=progress, stop_event=stop_event)
+    by_ip = {d.ip: d for d in devices}
+    for ip, nres in results.items():
+        dev = by_ip.get(ip)
+        if dev and nres:
+            try:
+                _apply_nmap(dev, nres)
+            except Exception as exc:
+                log.debug("apply nmap failed for %s: %s", ip, exc)
+
+
+def _apply_nmap(dev, nres):
+    """Merge a normalised nmap result into a Device (in place)."""
+    # -- port-level: product / version / CPE / NSE scripts --------------------
+    for np in nres.get("ports", []):
+        for pr in dev.ports:
+            if pr.port == np["port"]:
+                if np.get("product"):
+                    pr.product = np["product"]
+                if np.get("version"):
+                    pr.version = np["version"]
+                if np.get("service"):
+                    pr.service = np["service"] or pr.service
+                if np.get("extra"):
+                    pr.extra["nmap"] = np["extra"]
+                if np.get("cpe"):
+                    pr.extra["cpe"] = np["cpe"]
+                if np.get("scripts"):
+                    pr.extra["nmap_scripts"] = np["scripts"]
+                break
+
+    # -- OS: nmap is authoritative when confident -----------------------------
+    oslist = nres.get("os") or []
+    if oslist:
+        best = oslist[0]
+        name = best.get("name", "")
+        dev.services_detail["nmap_os"] = name
+        try:
+            acc = int(best.get("accuracy") or 0)
+        except (TypeError, ValueError):
+            acc = 0
+        if name and (acc >= 85 or dev.os_guess in ("-", "", None)):
+            dev.os_guess = name
+            dev.os_confidence = ("nmap %d%%" % acc) if acc else "nmap"
+
+    # -- identity gap-fills ---------------------------------------------------
+    if dev.hostname in ("-", "", None) and nres.get("hostnames"):
+        dev.hostname = nres["hostnames"][0]
+    if dev.vendor in ("-", "", "unknown") and nres.get("vendor"):
+        dev.vendor = nres["vendor"]
+
+    # -- stash a compact nmap block for the report + security check -----------
+    nd = dev.services_detail.setdefault("nmap", {})
+    nd["os"] = oslist
+    nd["hostscripts"] = nres.get("hostscripts", [])
+    nd["cpes"] = sorted({c for np in nres.get("ports", [])
+                         for c in (np.get("cpe") or [])})
+    if nres.get("uptime"):
+        nd["uptime"] = nres["uptime"]
+    dev.add_tag("nmap")
+
+
+def _finalize_meta(meta):
+    """Stamp edition / owner / engagement context onto a ScanMeta."""
+    meta.edition = edition.key()
+    if edition.feature("greeting"):
+        meta.owner = edition.owner_name()
+    engagement.stamp(meta)
+    return meta
+
+
+def _build_meta(config, env, net, devices, disc_report, elapsed, scan_type):
+    return _finalize_meta(ScanMeta(
+        generated=now_str(),
+        scan_type=scan_type,
+        profile=config.profile,
+        network=str(net),
+        local_ip=env.local_ip,
+        gateway=env.gateway,
+        dns=env.dns_servers,
+        public_ip=env.public_ip,
+        isp=env.isp,
+        geo=env.geo,
+        methods=disc_report.methods_used,
+        engine=engine_tag(),
+        duration=elapsed,
+        count=len(devices),
+        hostname=constants.HOSTNAME,
+        platform=platform.platform(),
+    ))
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.logging_setup
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.logging_setup'] = r'''"""
+Logging configuration. Logs go to ``~/.scanfy/scanfy.log`` at DEBUG level and,
+optionally, a concise stream to the console. Noisy third-party loggers
+(scapy, urllib3, zeroconf) are silenced.
+"""
+
+import logging
+import logging.handlers
+
+from . import constants
+
+_CONFIGURED = False
+
+
+def setup_logging(verbose=False):
+    global _CONFIGURED
+    if _CONFIGURED:
+        return logging.getLogger("scanfy")
+
+    logger = logging.getLogger("scanfy")
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    # rotating file handler
+    try:
+        fh = logging.handlers.RotatingFileHandler(
+            constants.LOG_PATH, maxBytes=1_000_000, backupCount=2,
+            encoding="utf-8")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)-7s %(name)s: %(message)s"))
+        logger.addHandler(fh)
+    except Exception:
+        pass
+
+    if verbose:
+        sh = logging.StreamHandler()
+        sh.setLevel(logging.INFO)
+        sh.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+        logger.addHandler(sh)
+
+    # silence noisy libraries
+    for noisy in ("scapy", "scapy.runtime", "scapy.loading", "urllib3",
+                  "requests", "zeroconf", "asyncio", "chardet"):
+        logging.getLogger(noisy).setLevel(logging.CRITICAL)
+
+    _CONFIGURED = True
+    return logger
+
+
+def get_logger(name="scanfy"):
+    if not _CONFIGURED:
+        setup_logging()
+    return logging.getLogger(name if name.startswith("scanfy") else f"scanfy.{name}")
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.models
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.models'] = r'''"""
+Typed data model for SCANFY.
+
+These dataclasses are the single source of truth passed between the discovery,
+scanning, fingerprinting, security and reporting layers. Every class provides
+``to_dict`` for JSON/report serialisation and, where useful, ``from_dict``.
+"""
+
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from .constants import SEVERITY_WEIGHT, severity_rank
+
+
+# ---------------------------------------------------------------------------
+# Ports & services
+# ---------------------------------------------------------------------------
+@dataclass
+class PortResult:
+    port: int
+    protocol: str = "tcp"
+    state: str = "open"
+    service: str = ""
+    category: str = "misc"
+    description: str = ""
+    banner: str = ""
+    product: str = ""
+    version: str = ""
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    def label(self):
+        return f"{self.port}/{self.service or self.protocol}"
+
+    def to_dict(self):
+        return asdict(self)
+
+
+# ---------------------------------------------------------------------------
+# TLS certificate info
+# ---------------------------------------------------------------------------
+@dataclass
+class TlsInfo:
+    port: int = 443
+    tls_version: str = ""
+    cipher: str = ""
+    subject: str = ""
+    issuer: str = ""
+    subject_cn: str = ""
+    issuer_cn: str = ""
+    not_before: str = ""
+    not_after: str = ""
+    san: List[str] = field(default_factory=list)
+    key_type: str = ""
+    key_bits: int = 0
+    sig_algorithm: str = ""
+    serial: str = ""
+    self_signed: bool = False
+    expired: bool = False
+    not_yet_valid: bool = False
+    days_to_expiry: Optional[int] = None
+
+    def to_dict(self):
+        return asdict(self)
+
+
+# ---------------------------------------------------------------------------
+# HTTP info
+# ---------------------------------------------------------------------------
+@dataclass
+class HttpInfo:
+    port: int = 80
+    scheme: str = "http"
+    url: str = ""
+    status: Optional[int] = None
+    server: str = ""
+    title: str = ""
+    powered_by: str = ""
+    content_type: str = ""
+    location: str = ""
+    headers: Dict[str, str] = field(default_factory=dict)
+    technologies: List[Dict[str, str]] = field(default_factory=list)
+    device_kind: str = ""
+    auth: str = ""
+    favicon_hash: str = ""
+
+    def to_dict(self):
+        return asdict(self)
+
+
+# ---------------------------------------------------------------------------
+# Security finding
+# ---------------------------------------------------------------------------
+@dataclass
+class Finding:
+    severity: str = "info"
+    category: str = "general"
+    title: str = ""
+    description: str = ""
+    recommendation: str = ""
+    port: Optional[int] = None
+    service: str = ""
+    cves: List[str] = field(default_factory=list)
+    evidence: str = ""
+
+    def weight(self):
+        return SEVERITY_WEIGHT.get(self.severity, 0.2)
+
+    def rank(self):
+        return severity_rank(self.severity)
+
+    def to_dict(self):
+        return asdict(self)
+
+
+# ---------------------------------------------------------------------------
+# Device
+# ---------------------------------------------------------------------------
+@dataclass
+class Device:
+    ip: str
+    mac: str = "-"
+    vendor: str = "-"
+    hostname: str = "-"
+    netbios: str = "-"
+    mdns_name: str = "-"
+    workgroup: str = "-"
+    dns_names: List[str] = field(default_factory=list)
+    ttl: Optional[int] = None
+    os_guess: str = "-"
+    os_confidence: str = ""
+    latency_ms: Optional[float] = None
+    jitter_ms: Optional[float] = None
+    discovery_methods: List[str] = field(default_factory=list)
+    ports: List[PortResult] = field(default_factory=list)
+    http: List[HttpInfo] = field(default_factory=list)
+    tls: List[TlsInfo] = field(default_factory=list)
+    services_detail: Dict[str, Any] = field(default_factory=dict)
+    device_type: str = "Unknown"
+    device_kind: str = ""
+    tags: List[str] = field(default_factory=list)
+    findings: List[Finding] = field(default_factory=list)
+    risk_score: float = 0.0
+    risk_label: str = "info"
+    randomized_mac: bool = False
+    is_gateway: bool = False
+    is_self: bool = False
+    first_seen: str = ""
+    last_seen: str = ""
+
+    # -- helpers -----------------------------------------------------------
+    def open_ports(self):
+        return sorted(p.port for p in self.ports if p.state == "open")
+
+    def has_port(self, port):
+        return any(p.port == port and p.state == "open" for p in self.ports)
+
+    def port_set(self):
+        return {p.port for p in self.ports if p.state == "open"}
+
+    def service_names(self):
+        return [p.service for p in self.ports if p.service]
+
+    def add_port(self, port_result):
+        if not any(p.port == port_result.port and p.protocol == port_result.protocol
+                   for p in self.ports):
+            self.ports.append(port_result)
+
+    def add_finding(self, finding):
+        self.findings.append(finding)
+
+    def add_tag(self, tag):
+        if tag and tag not in self.tags:
+            self.tags.append(tag)
+
+    def best_name(self):
+        for candidate in (self.hostname, self.mdns_name, self.netbios):
+            if candidate and candidate not in ("-", ""):
+                return candidate
+        return self.ip
+
+    def ports_str(self, limit=None):
+        items = [f"{p.port}/{p.service or p.protocol}" for p in
+                 sorted(self.ports, key=lambda x: x.port)]
+        if limit and len(items) > limit:
+            return ", ".join(items[:limit]) + f" (+{len(items) - limit})"
+        return ", ".join(items) if items else "-"
+
+    def max_severity(self):
+        if not self.findings:
+            return "info"
+        return min((f.severity for f in self.findings), key=severity_rank)
+
+    def count_findings(self):
+        counts = {}
+        for f in self.findings:
+            counts[f.severity] = counts.get(f.severity, 0) + 1
+        return counts
+
+    def to_dict(self):
+        d = asdict(self)
+        # asdict already recursed into nested dataclasses (ports/http/tls/findings)
+        return d
+
+
+# ---------------------------------------------------------------------------
+# Scan metadata & result
+# ---------------------------------------------------------------------------
+@dataclass
+class ScanMeta:
+    generated: str = ""
+    scan_type: str = "Quick"
+    profile: str = "default"
+    network: str = ""
+    local_ip: str = ""
+    gateway: str = "-"
+    dns: List[str] = field(default_factory=list)
+    public_ip: str = ""
+    isp: str = ""
+    geo: str = ""
+    methods: List[str] = field(default_factory=list)
+    engine: str = ""
+    duration: float = 0.0
+    count: int = 0
+    hostname: str = ""
+    platform: str = ""
+    # edition / engagement context (empty for classic scans)
+    edition: str = ""
+    owner: str = ""
+    client: str = ""
+    operator: str = ""
+    auth_ref: str = ""
+    scope: List[str] = field(default_factory=list)
+
+    def to_dict(self):
+        return asdict(self)
+
+
+class ScanResult:
+    """A completed scan: the device list plus metadata and aggregates."""
+
+    def __init__(self, devices, meta):
+        self.devices: List[Device] = devices
+        self.meta: ScanMeta = meta
+
+    # -- aggregations ------------------------------------------------------
+    def all_findings(self):
+        out = []
+        for d in self.devices:
+            for f in d.findings:
+                out.append((d, f))
+        out.sort(key=lambda pair: severity_rank(pair[1].severity))
+        return out
+
+    def severity_counts(self):
+        counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+        for d in self.devices:
+            for f in d.findings:
+                counts[f.severity] = counts.get(f.severity, 0) + 1
+        return counts
+
+    def type_distribution(self):
+        dist = {}
+        for d in self.devices:
+            dist[d.device_type] = dist.get(d.device_type, 0) + 1
+        return sorted(dist.items(), key=lambda kv: -kv[1])
+
+    def vendor_distribution(self):
+        dist = {}
+        for d in self.devices:
+            v = d.vendor if d.vendor not in ("-", "", "unknown") else "unknown"
+            dist[v] = dist.get(v, 0) + 1
+        return sorted(dist.items(), key=lambda kv: -kv[1])
+
+    def service_distribution(self):
+        dist = {}
+        for d in self.devices:
+            for p in d.ports:
+                if p.state == "open":
+                    key = p.service or str(p.port)
+                    dist[key] = dist.get(key, 0) + 1
+        return sorted(dist.items(), key=lambda kv: -kv[1])
+
+    def category_distribution(self):
+        dist = {}
+        for d in self.devices:
+            for p in d.ports:
+                if p.state == "open":
+                    dist[p.category] = dist.get(p.category, 0) + 1
+        return sorted(dist.items(), key=lambda kv: -kv[1])
+
+    def total_open_ports(self):
+        return sum(len(d.open_ports()) for d in self.devices)
+
+    def riskiest(self, n=5):
+        return sorted(self.devices, key=lambda d: -d.risk_score)[:n]
+
+    def overall_risk_score(self):
+        if not self.devices:
+            return 0.0
+        return round(sum(d.risk_score for d in self.devices), 1)
+
+    def risk_grade(self):
+        counts = self.severity_counts()
+        if counts["critical"]:
+            return "F"
+        if counts["high"] >= 3:
+            return "E"
+        if counts["high"]:
+            return "D"
+        if counts["medium"] >= 3:
+            return "C"
+        if counts["medium"]:
+            return "B"
+        return "A"
+
+    def to_dict(self):
+        return {
+            "meta": self.meta.to_dict(),
+            "aggregates": {
+                "severity": self.severity_counts(),
+                "types": self.type_distribution(),
+                "services": self.service_distribution(),
+                "risk_score": self.overall_risk_score(),
+                "risk_grade": self.risk_grade(),
+            },
+            "devices": [d.to_dict() for d in self.devices],
+        }
+
+
+def now_str():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.monitor
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.monitor'] = r'''"""
+Continuous network monitor.
+
+Repeatedly runs a lightweight discovery pass on an interval, compares each pass
+to a baseline and emits events when a device joins or leaves the network. Useful
+for spotting rogue/unexpected devices. The heavy scanning subsystems are not
+used here - just fast multi-method discovery - so it stays cheap enough to run
+for long periods.
+"""
+
+import time
+
+from .logging_setup import get_logger
+from .utils import netutils
+
+log = get_logger("monitor")
+
+
+class NetworkMonitor:
+    def __init__(self, network, config, env, discovery_fn, on_event=None):
+        """
+        ``discovery_fn(network, config, env)`` -> list[Device].
+        ``on_event(event_type, device)`` is called for 'join'/'leave'.
+        """
+        self.network = network
+        self.config = config
+        self.env = env
+        self.discovery_fn = discovery_fn
+        self.on_event = on_event
+        self.baseline = {}     # key -> device
+        self.running = False
+
+    @staticmethod
+    def _key(dev):
+        return dev.mac if dev.mac and dev.mac != "-" else dev.ip
+
+    def _snapshot(self):
+        devices = self.discovery_fn(self.network, self.config, self.env)
+        return {self._key(d): d for d in devices}
+
+    def establish_baseline(self):
+        self.baseline = self._snapshot()
+        log.info("baseline established: %d devices", len(self.baseline))
+        return self.baseline
+
+    def poll_once(self):
+        """Run one comparison pass. Returns (joined, left) device lists."""
+        current = self._snapshot()
+        joined = [d for k, d in current.items() if k not in self.baseline]
+        left = [d for k, d in self.baseline.items() if k not in current]
+        for d in joined:
+            if self.on_event:
+                self.on_event("join", d)
+        for d in left:
+            if self.on_event:
+                self.on_event("leave", d)
+        # merge: keep known + add new; drop long-gone
+        self.baseline = current
+        return joined, left
+
+    def run(self, interval=30, iterations=None, stop_event=None):
+        """Blocking monitor loop. ``iterations=None`` runs until interrupted."""
+        self.running = True
+        if not self.baseline:
+            self.establish_baseline()
+        count = 0
+        try:
+            while self.running:
+                if stop_event is not None and stop_event.is_set():
+                    break
+                time.sleep(interval)
+                self.poll_once()
+                count += 1
+                if iterations is not None and count >= iterations:
+                    break
+        finally:
+            self.running = False
+        return count
+
+    def stop(self):
+        self.running = False
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.storage
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.storage'] = r'''"""
+Scan history storage and diffing (SQLite).
+
+Every completed scan can be persisted to ``~/.scanfy/scanfy_history.sqlite3``.
+Two scans of the same network can then be diffed to reveal *new* devices,
+*disappeared* devices and hosts whose open-port set or risk changed - the basis
+for the monitor mode and for tracking a network over time.
+"""
+
+import json
+import sqlite3
+import time
+
+from . import constants
+from .logging_setup import get_logger
+from .models import now_str
+
+log = get_logger("storage")
+
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS scans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,
+    network TEXT,
+    scan_type TEXT,
+    device_count INTEGER,
+    risk_grade TEXT,
+    meta_json TEXT
+);
+CREATE TABLE IF NOT EXISTS devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id INTEGER NOT NULL,
+    ip TEXT, mac TEXT, vendor TEXT, hostname TEXT,
+    device_type TEXT, os_guess TEXT, risk_score REAL,
+    open_ports TEXT, findings INTEGER,
+    device_json TEXT,
+    FOREIGN KEY(scan_id) REFERENCES scans(id)
+);
+CREATE INDEX IF NOT EXISTS idx_dev_scan ON devices(scan_id);
+CREATE INDEX IF NOT EXISTS idx_dev_mac ON devices(mac);
+"""
+
+
+class HistoryStore:
+    def __init__(self, path=None):
+        self.path = path or constants.DB_PATH
+        self._conn = None
+
+    def connect(self):
+        if self._conn is None:
+            self._conn = sqlite3.connect(self.path)
+            self._conn.row_factory = sqlite3.Row
+            self._conn.executescript(SCHEMA)
+        return self._conn
+
+    def close(self):
+        if self._conn:
+            self._conn.close()
+            self._conn = None
+
+    # -- write -------------------------------------------------------------
+    def save(self, result):
+        conn = self.connect()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO scans (ts, network, scan_type, device_count, risk_grade, meta_json)"
+            " VALUES (?,?,?,?,?,?)",
+            (result.meta.generated or now_str(), result.meta.network,
+             result.meta.scan_type, len(result.devices), result.risk_grade(),
+             json.dumps(result.meta.to_dict())))
+        scan_id = cur.lastrowid
+        for d in result.devices:
+            cur.execute(
+                "INSERT INTO devices (scan_id, ip, mac, vendor, hostname, "
+                "device_type, os_guess, risk_score, open_ports, findings, device_json)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (scan_id, d.ip, d.mac, d.vendor, d.best_name(), d.device_type,
+                 d.os_guess, d.risk_score,
+                 ",".join(str(p) for p in d.open_ports()), len(d.findings),
+                 json.dumps(d.to_dict())))
+        conn.commit()
+        log.info("saved scan %d (%d devices)", scan_id, len(result.devices))
+        return scan_id
+
+    # -- read --------------------------------------------------------------
+    def list_scans(self, limit=25):
+        conn = self.connect()
+        rows = conn.execute(
+            "SELECT id, ts, network, scan_type, device_count, risk_grade "
+            "FROM scans ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_scan_devices(self, scan_id):
+        conn = self.connect()
+        rows = conn.execute(
+            "SELECT ip, mac, vendor, hostname, device_type, os_guess, "
+            "risk_score, open_ports, findings FROM devices WHERE scan_id=?",
+            (scan_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def latest_scan_for_network(self, network, exclude_id=None):
+        conn = self.connect()
+        q = "SELECT id FROM scans WHERE network=?"
+        params = [network]
+        if exclude_id:
+            q += " AND id<>?"
+            params.append(exclude_id)
+        q += " ORDER BY id DESC LIMIT 1"
+        row = conn.execute(q, params).fetchone()
+        return row["id"] if row else None
+
+
+def diff_device_lists(old_devices, new_devices):
+    """
+    Compare two lists of device dicts (as stored). Returns a dict with
+    ``new``, ``gone`` and ``changed`` lists. Identity is by MAC when available,
+    else by IP.
+    """
+    def key(d):
+        mac = d.get("mac", "-")
+        return mac if mac and mac != "-" else d.get("ip")
+
+    old_map = {key(d): d for d in old_devices}
+    new_map = {key(d): d for d in new_devices}
+
+    new_keys = [k for k in new_map if k not in old_map]
+    gone_keys = [k for k in old_map if k not in new_map]
+
+    changed = []
+    for k in new_map:
+        if k in old_map:
+            o, n = old_map[k], new_map[k]
+            op_o = set((o.get("open_ports") or "").split(",")) - {""}
+            op_n = set((n.get("open_ports") or "").split(",")) - {""}
+            if op_o != op_n or o.get("device_type") != n.get("device_type"):
+                changed.append({
+                    "ip": n.get("ip"), "name": n.get("hostname"),
+                    "added_ports": sorted(op_n - op_o, key=lambda x: int(x) if x.isdigit() else 0),
+                    "removed_ports": sorted(op_o - op_n, key=lambda x: int(x) if x.isdigit() else 0),
+                    "type_before": o.get("device_type"),
+                    "type_after": n.get("device_type"),
+                })
+
+    return {
+        "new": [new_map[k] for k in new_keys],
+        "gone": [old_map[k] for k in gone_keys],
+        "changed": changed,
+    }
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.topology
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.topology'] = r'''"""
+Network topology & path tracing.
+
+Builds a logical topology graph for the dossier (the operator's machine and the
+gateway at the centre, every discovered host as a leaf, grouped by device type)
+and can run a traceroute to an external target to document the upstream path.
+"""
+
+import re
+import subprocess
+
+from . import constants
+from .logging_setup import get_logger
+from .utils import netutils
+
+log = get_logger("topology")
+
+
+def traceroute(target="8.8.8.8", max_hops=15, timeout=2):
+    """Return a list of {hop, ip, rtt_ms} using the system tracer."""
+    hops = []
+    try:
+        if constants.IS_WINDOWS:
+            cmd = ["tracert", "-d", "-h", str(max_hops), "-w",
+                   str(int(timeout * 1000)), target]
+            enc = constants.WIN_ENCODING
+        else:
+            cmd = ["traceroute", "-n", "-m", str(max_hops), "-w",
+                   str(timeout), target]
+            enc = "utf-8"
+        out = subprocess.run(cmd, capture_output=True, text=True,
+                             encoding=enc, errors="ignore",
+                             timeout=max_hops * timeout + 15).stdout
+    except Exception as exc:
+        log.debug("traceroute failed: %s", exc)
+        return hops
+
+    for line in out.splitlines():
+        m = re.match(r"\s*(\d+)\s+(.*)", line)
+        if not m:
+            continue
+        hop_num = int(m.group(1))
+        rest = m.group(2)
+        ip_m = re.search(r"(\d{1,3}(?:\.\d{1,3}){3})", rest)
+        rtt_m = re.search(r"(\d+(?:\.\d+)?)\s*(?:ms|мс)", rest)
+        if "*" in rest and not ip_m:
+            hops.append({"hop": hop_num, "ip": "*", "rtt_ms": None})
+        elif ip_m:
+            hops.append({"hop": hop_num, "ip": ip_m.group(1),
+                         "rtt_ms": float(rtt_m.group(1)) if rtt_m else None})
+    log.info("traceroute to %s: %d hops", target, len(hops))
+    return hops
+
+
+def build_graph(result):
+    """
+    Produce a simple topology description consumed by the HTML renderer:
+        {center: {gateway, operator}, groups: [{type, devices:[...]}], edges}
+    """
+    meta = result.meta
+    gateway = meta.gateway
+    operator = meta.local_ip
+
+    groups = {}
+    for d in result.devices:
+        if d.is_gateway:
+            continue
+        groups.setdefault(d.device_type, []).append({
+            "ip": d.ip, "name": d.best_name(), "risk": d.risk_label,
+            "is_self": d.is_self, "type": d.device_type,
+        })
+
+    ordered = sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    return {
+        "gateway": gateway,
+        "operator": operator,
+        "network": meta.network,
+        "total": len(result.devices),
+        "groups": [{"type": t, "devices": ds} for t, ds in ordered],
+    }
+
+
+def annotate_hop_counts(result):
+    """On a flat LAN every host is one hop; mark gateway as hop 0."""
+    for d in result.devices:
+        d.services_detail["hop"] = 0 if d.is_gateway or d.is_self else 1
+    return result
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.vendors
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.vendors'] = r'''"""
+MAC vendor resolution.
+
+Prefers the full IEEE database via ``mac-vendor-lookup`` and falls back to the
+embedded prefix table. IMPORTANT: ``mac-vendor-lookup`` drives an asyncio loop
+internally and is *not* thread-safe, so callers must resolve vendors serially
+(this module offers ``resolve_many`` which does exactly that) rather than from a
+thread pool.
+"""
+
+from . import constants
+from .data import oui_fallback
+from .logging_setup import get_logger
+from .utils import netutils
+
+log = get_logger("vendors")
+
+_mac_lookup = None
+if constants.HAS_MAC_VENDOR:
+    try:
+        from mac_vendor_lookup import MacLookup
+        _mac_lookup = MacLookup()
+    except Exception as exc:  # pragma: no cover
+        log.debug("MacLookup init failed: %s", exc)
+        _mac_lookup = None
+
+
+def resolve(mac):
+    """Return a vendor name for a MAC, or 'unknown'/'-' as appropriate."""
+    mac = netutils.normalize_mac(mac)
+    if mac == "-":
+        return "-"
+    if _mac_lookup is not None:
+        try:
+            return _mac_lookup.lookup(mac)
+        except Exception:
+            pass
+    return oui_fallback.lookup(mac)
+
+
+def resolve_many(macs):
+    """Resolve a collection of MACs serially. Returns {mac: vendor}."""
+    out = {}
+    for mac in set(macs):
+        out[mac] = resolve(mac)
+    return out
+
+
+def update_database():
+    """Refresh the local OUI database (requires internet)."""
+    if _mac_lookup is None:
+        return False
+    try:
+        _mac_lookup.update_vendors()
+        return True
+    except Exception as exc:
+        log.debug("OUI update failed: %s", exc)
+        return False
+
+
+def device_hint(vendor):
+    return oui_fallback.device_hint_for_vendor(vendor)
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.version
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.version'] = r'''"""Version and build metadata for SCANFY."""
+
+__version__ = "4.1.0"
+
+VERSION = __version__
+
+BUILD = "pro"
+CODENAME = "Pro"
+
+# Semantic components, useful for comparisons / reports.
+VERSION_INFO = (4, 1, 0)
+
+# Human friendly banner subtitle.
+TAGLINE = "advanced network scanner · service fingerprinter · security dossier"
+
+# Classic-edition motto (dossiers take their closing lines from scanfyx.edition).
+MOTTO_EN = MOTTO_PT = ""
+
+# Minimum supported Python.
+MIN_PYTHON = (3, 8)
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.watch
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.watch'] = r'''"""
+WiFi Watch -- connected-device census & lawful intruder response.
+
+This module powers SCANFY's Wi-Fi Watch mode. It focuses on the devices
+currently connected to the local Wi-Fi/LAN, leans on the rest of the engine to
+extract as much identity as possible (vendor, hostname, NetBIOS/mDNS name,
+device type, OS, services) and compares each device against a user-maintained
+*trusted* allowlist keyed by MAC address. Anything not on the list is flagged as
+an UNKNOWN device / possible intruder.
+
+Response is deliberately router-based and lawful. SCANFY never transmits 802.11
+deauthentication frames: that is a wireless denial-of-service that is illegal
+against networks you do not own, disrupts every neighbour on the channel and is
+only ever temporary (the device reconnects in seconds). Instead SCANFY hands you
+the exact MAC plus a step-by-step playbook to remove the device *permanently*
+through your router's access-control page, and to rotate the Wi-Fi password /
+enable WPA3 -- the fix that actually keeps an intruder out for good.
+"""
+
+import json
+import os
+import subprocess
+import time
+import webbrowser
+
+from . import constants
+
+TRUSTED_PATH = os.path.join(constants.CONFIG_DIR, "trusted_devices.json")
+BLOCKED_PATH = os.path.join(constants.CONFIG_DIR, "blocked_devices.json")
+
+PRESENCE_SELF = "self"
+PRESENCE_GATEWAY = "gateway"
+PRESENCE_TRUSTED = "trusted"
+PRESENCE_UNKNOWN = "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Trusted allowlist persistence
+# ---------------------------------------------------------------------------
+def normalize_mac(mac):
+    if not mac:
+        return ""
+    m = str(mac).strip().lower().replace("-", ":")
+    return m if m and m != "-" else ""
+
+
+def load_trusted():
+    """Return {mac: {label, vendor, added}} from disk (empty on any error)."""
+    try:
+        with open(TRUSTED_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return {normalize_mac(k): v for k, v in data.items() if normalize_mac(k)}
+    except Exception:
+        pass
+    return {}
+
+
+def save_trusted(trusted):
+    try:
+        with open(TRUSTED_PATH, "w", encoding="utf-8") as f:
+            json.dump(trusted, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
+def trust_device(device, label=""):
+    mac = normalize_mac(device.mac)
+    if not mac:
+        return False
+    trusted = load_trusted()
+    trusted[mac] = {
+        "label": label or device.best_name(),
+        "vendor": device.vendor,
+        "added": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    unmark_blocked(mac)          # trusted and blocked are mutually exclusive
+    return save_trusted(trusted)
+
+
+def untrust_mac(mac):
+    mac = normalize_mac(mac)
+    trusted = load_trusted()
+    if mac in trusted:
+        del trusted[mac]
+        return save_trusted(trusted)
+    return False
+
+
+def is_trusted(device, trusted=None):
+    if trusted is None:
+        trusted = load_trusted()
+    return normalize_mac(device.mac) in trusted
+
+
+# ---------------------------------------------------------------------------
+# Blocklist persistence -- devices you decided to block at the router. SCANFY
+# cannot block them itself, but it remembers your intent so that every later
+# WiFi Watch can CONFIRM the device is gone -- or re-alert if it is still on the
+# network (router rule not applied yet, or the device rotated its MAC).
+# ---------------------------------------------------------------------------
+def load_blocked():
+    try:
+        with open(BLOCKED_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return {normalize_mac(k): v for k, v in data.items() if normalize_mac(k)}
+    except Exception:
+        pass
+    return {}
+
+
+def save_blocked(blocked):
+    try:
+        with open(BLOCKED_PATH, "w", encoding="utf-8") as f:
+            json.dump(blocked, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
+def mark_blocked(device, label=""):
+    mac = normalize_mac(device.mac)
+    if not mac:
+        return False
+    blocked = load_blocked()
+    blocked[mac] = {
+        "label": label or device.best_name(),
+        "vendor": device.vendor,
+        "ip": device.ip,
+        "marked": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    # a blocked device cannot also be on the trusted list
+    trusted = load_trusted()
+    if mac in trusted:
+        del trusted[mac]
+        save_trusted(trusted)
+    return save_blocked(blocked)
+
+
+def unmark_blocked(mac):
+    mac = normalize_mac(mac)
+    blocked = load_blocked()
+    if mac in blocked:
+        del blocked[mac]
+        return save_blocked(blocked)
+    return False
+
+
+def is_blocked(device, blocked=None):
+    if blocked is None:
+        blocked = load_blocked()
+    return normalize_mac(device.mac) in blocked
+
+
+# ---------------------------------------------------------------------------
+# Presence classification
+# ---------------------------------------------------------------------------
+def annotate(devices, trusted=None, blocked=None):
+    """
+    Tag each device with a presence status (self / gateway / trusted / unknown)
+    stored in ``services_detail['presence']`` and mirrored into tags. Devices you
+    previously marked as blocked but which are STILL on the network are flagged
+    (``services_detail['blocked_present'] = True`` + tag). Returns a summary dict
+    grouping the devices by status, plus a ``blocked_present`` list.
+    """
+    if trusted is None:
+        trusted = load_trusted()
+    if blocked is None:
+        blocked = load_blocked()
+    summary = {"self": [], "gateway": [], "trusted": [], "unknown": [],
+               "blocked_present": [], "total": 0}
+    for d in devices:
+        mac = normalize_mac(d.mac)
+        if d.is_self:
+            status = PRESENCE_SELF
+        elif d.is_gateway:
+            status = PRESENCE_GATEWAY
+        elif mac and mac in trusted:
+            status = PRESENCE_TRUSTED
+        else:
+            status = PRESENCE_UNKNOWN
+        d.services_detail["presence"] = status
+        is_blk = bool(mac and mac in blocked)
+        d.services_detail["blocked_present"] = is_blk and not d.is_self and not d.is_gateway
+        if status == PRESENCE_TRUSTED:
+            d.add_tag("trusted")
+        elif status == PRESENCE_UNKNOWN:
+            d.add_tag("unknown-device")
+            if d.randomized_mac:
+                d.add_tag("randomized-mac")
+        if d.services_detail["blocked_present"]:
+            d.add_tag("blocked-still-present")
+            summary["blocked_present"].append(d)
+        summary[status].append(d)
+        summary["total"] += 1
+    return summary
+
+
+def intruders(devices, trusted=None):
+    """Return the unknown (non-self, non-gateway) devices -- possible intruders."""
+    if trusted is None:
+        trusted = load_trusted()
+    out = []
+    for d in devices:
+        if d.is_self or d.is_gateway:
+            continue
+        if normalize_mac(d.mac) not in trusted:
+            out.append(d)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Lawful, router-based response (NO deauth)
+# ---------------------------------------------------------------------------
+def router_admin_url(env):
+    gw = getattr(env, "gateway", "") or ""
+    if gw and gw != "-":
+        return "http://" + gw
+    return ""
+
+
+def open_router_admin(env):
+    url = router_admin_url(env)
+    if not url:
+        return False
+    try:
+        webbrowser.open(url)
+        return True
+    except Exception:
+        return False
+
+
+# --- Router brand knowledge base -------------------------------------------
+# Aliases map vendor spellings / model brands / firmware strings onto one key.
+_ROUTER_ALIASES = {
+    "huawei": "huawei", "honor": "huawei", "hilink": "huawei", "echolife": "huawei",
+    "intelbras": "intelbras", "action rf": "intelbras", "twibi": "intelbras",
+    "tp-link": "tplink", "tplink": "tplink", "archer": "tplink", "tapo": "tplink",
+    "deco": "tplink", "tether": "tplink",
+    "mercusys": "mercusys", "halo": "mercusys",
+    "d-link": "dlink", "dlink": "dlink", "eagle pro": "dlink", "covr": "dlink",
+    "asus": "asus", "asuswrt": "asus", "zenwifi": "asus", "rt-ax": "asus", "rog rapture": "asus",
+    "netgear": "netgear", "nighthawk": "netgear", "orbi": "netgear", "routerlogin": "netgear",
+    "tenda": "tenda", "nova ac": "tenda",
+    "xiaomi": "xiaomi", "redmi": "xiaomi", "mi router": "xiaomi", "miwifi": "xiaomi",
+    "mikrotik": "mikrotik", "routeros": "mikrotik", "routerboard": "mikrotik",
+    "zte": "zte", "zxhn": "zte", "sagemcom": "sagemcom", "technicolor": "technicolor",
+    "arris": "arris", "ubiquiti": "unifi", "unifi": "unifi", "amplifi": "unifi",
+    "linksys": "linksys", "velop": "linksys",
+    "cisco": "cisco", "meraki": "cisco",
+    "motorola": "motorola", "nokia": "nokia", "beacon": "nokia",
+    "fiberhome": "fiberhome", "ruijie": "ruijie", "reyee": "ruijie",
+    "multilaser": "multilaser", "netis": "netis", "comtrend": "comtrend",
+    "askey": "askey", "zyxel": "zyxel",
+    "aruba": "aruba", "instant on": "aruba",
+    "keenetic": "keenetic", "gl.inet": "glinet", "gl-inet": "glinet", "glinet": "glinet",
+    "google": "google", "nest wifi": "google", "eero": "eero", "amazon": "eero",
+    "totolink": "totolink", "ubee": "ubee", "humax": "humax", "datacom": "datacom",
+    "parks": "parks", "vsol": "vsol", "greatek": "greatek", "positivo": "positivo",
+}
+
+_BRAND_LABELS = {
+    "huawei": "Huawei / Honor", "intelbras": "Intelbras", "tplink": "TP-Link",
+    "mercusys": "Mercusys", "dlink": "D-Link", "asus": "ASUS", "netgear": "Netgear",
+    "tenda": "Tenda", "xiaomi": "Xiaomi / Redmi", "mikrotik": "MikroTik",
+    "zte": "ZTE", "sagemcom": "Sagemcom", "technicolor": "Technicolor",
+    "arris": "Arris", "unifi": "Ubiquiti / UniFi", "linksys": "Linksys",
+    "cisco": "Cisco / Meraki", "motorola": "Motorola", "nokia": "Nokia",
+    "fiberhome": "FiberHome", "ruijie": "Ruijie / Reyee", "multilaser": "Multilaser",
+    "netis": "Netis", "comtrend": "Comtrend", "askey": "Askey", "zyxel": "Zyxel",
+    "aruba": "Aruba / Instant On", "keenetic": "Keenetic", "glinet": "GL.iNet",
+    "google": "Google Nest WiFi", "eero": "Amazon eero", "totolink": "Totolink",
+    "ubee": "Ubee", "humax": "Humax", "datacom": "Datacom", "parks": "Parks",
+    "vsol": "V-SOL", "greatek": "Greatek", "positivo": "Positivo",
+}
+
+# Well-known friendly admin hostnames (an alternative to the raw gateway IP).
+_FRIENDLY_URLS = {
+    "tplink": "http://tplinkwifi.net", "netgear": "http://routerlogin.net",
+    "asus": "http://router.asus.com", "linksys": "http://linksyssmartwifi.com",
+    "keenetic": "http://my.keenetic.net", "dlink": "http://dlinkrouter.local",
+    "tenda": "http://tendawifi.com", "mercusys": "http://mwlogin.net",
+    "xiaomi": "http://miwifi.com", "totolink": "http://itotolink.net",
+    "zyxel": "http://myrouter.local",
+}
+
+# App-only systems (no useful web admin) -> tell the user to use the app.
+_APP_ONLY = {"google", "eero"}
+
+_ROUTER_GUIDES = {
+    "huawei": [
+        " -App: 'Huawei AI Life' (or HiLink) -> your router -> Devices -> tap the",
+        "   device -> 'Block' / 'Add to blacklist'.",
+        " -Web: 'More'/'Home Network' -> 'Device Management' or 'Wi-Fi access",
+        "   control'/'Blacklist' -> add the MAC -> Save.",
+    ],
+    "intelbras": [
+        " -App 'Meu Intelbras' or the web UI -> 'Wi-Fi'/'Rede' -> 'Controle de",
+        "   acesso'/'Lista de bloqueio (blacklist)' -> add the MAC -> Salvar.",
+    ],
+    "tplink": [
+        " -App 'Tether'/'Deco' -> the device -> 'Block'; or web UI ->",
+        "   'Security'/'Access Control' (or 'Parental Controls') -> Blacklist ->",
+        "   add the MAC -> Save.",
+    ],
+    "mercusys": [
+        " -Web UI -> 'Advanced' -> 'Security'/'Access Control' -> Blacklist ->",
+        "   add the MAC -> Save.",
+    ],
+    "dlink": [
+        " -App 'EAGLE PRO AI' or web UI -> 'Advanced' -> 'Network Filter'/",
+        "   'Access Control' -> deny the MAC -> Save.",
+    ],
+    "asus": [
+        " -App 'ASUS Router' or web UI -> 'AiProtection'/'Wireless' -> 'Wireless",
+        "   MAC Filter' -> mode 'Reject' -> add the MAC -> Apply.",
+    ],
+    "netgear": [
+        " -App 'Nighthawk'/'Orbi' -> the device -> 'Block'; or web UI -> 'Access",
+        "   Control'/'Connected Devices' -> Block -> Apply.",
+    ],
+    "tenda": [
+        " -App 'Tenda WiFi' or web UI -> 'Parental Control'/'Access Control' ->",
+        "   add the MAC to the blacklist -> Save.",
+    ],
+    "xiaomi": [
+        " -App 'Mi Wi-Fi'/'Mi Home' -> Devices -> tap the device -> 'Add to",
+        "   blocklist'; or web UI -> Device list -> Block.",
+    ],
+    "mikrotik": [
+        " -Winbox/Webfig -> Wireless -> 'Access List' (or a bridge filter) -> add",
+        "   the MAC with authentication=no, forwarding=no -> Apply.",
+    ],
+    "zte": [
+        " -App or web UI -> 'WLAN'/'Wi-Fi' -> 'Access Control'/'Blacklist' -> add",
+        "   the MAC -> Apply.",
+    ],
+    "sagemcom": [
+        " -Web UI -> 'Access Control'/'Device blocking'/'Managed Devices' -> block",
+        "   the MAC -> Save.",
+    ],
+    "technicolor": [
+        " -Web UI -> 'Managed Devices'/'Access Control' -> block the device -> Save.",
+    ],
+    "arris": [
+        " -Web UI -> 'Firewall'/'MAC Filtering'/'Managed Devices' -> deny the MAC.",
+    ],
+    "unifi": [
+        " -UniFi app or console -> Client Devices -> the device -> 'Block'.",
+    ],
+    "linksys": [
+        " -App 'Linksys' or web UI -> 'Wi-Fi settings'/'MAC Filtering' -> block",
+        "   the MAC; or Velop app -> the device -> 'Pause'/'Block'.",
+    ],
+    "cisco": [
+        " -Meraki dashboard/app -> Clients -> the client -> Policy 'Blocked'; on",
+        "   classic IOS use a MAC access-list on the WLAN.",
+    ],
+    "motorola": [
+        " -Web UI -> 'Wireless'/'MAC Filtering'/'Access Control' -> deny the MAC.",
+    ],
+    "nokia": [
+        " -App 'WiFi Hub'/'Beacon' -> the device -> 'Pause'/'Block'; or web UI ->",
+        "   'Access Control' -> block the MAC.",
+    ],
+    "fiberhome": [
+        " -Web UI -> 'WLAN'/'Security' -> 'Access Control'/'MAC Filter' -> deny MAC.",
+    ],
+    "ruijie": [
+        " -App 'Ruijie Router'/'Reyee' -> the device -> 'Block'; or web UI ->",
+        "   'Clients'/'Blacklist' -> add the MAC.",
+    ],
+    "multilaser": [
+        " -App 'Multilaser Fast' or web UI -> 'Wi-Fi'/'Controle de acesso' -> add",
+        "   the MAC to the blacklist -> Salvar.",
+    ],
+    "netis": [
+        " -Web UI -> 'Wireless'/'MAC Filter' -> deny the MAC -> Save.",
+    ],
+    "keenetic": [
+        " -App 'Keenetic' or web UI -> 'Device list' -> the device -> block /",
+        "   'Deny internet & home segment' -> Save.",
+    ],
+    "glinet": [
+        " -Web UI (GL.iNet) -> 'Clients' -> the device -> 'Block'.",
+    ],
+    "aruba": [
+        " -Aruba Instant On app -> the device -> 'Block'; or the web portal ->",
+        "   Clients -> block.",
+    ],
+    "zyxel": [
+        " -Web UI -> 'Security'/'MAC Filter'/'Access Control' -> deny the MAC.",
+    ],
+    "google": [
+        " -App 'Google Home' -> Wi-Fi -> Devices -> the device -> 'Pause'/",
+        "   'Block' (Google Nest WiFi has no web admin).",
+    ],
+    "eero": [
+        " -App 'eero' -> the device -> 'Block device'/'Pause' (eero is app-only).",
+    ],
+}
+
+
+def _router_identity(env, gateway_device=None):
+    """
+    Best-effort router identity from every signal the gateway exposes.
+    Returns (brand_key, brand_label, model, admin_url, friendly_url).
+    """
+    hints, model = [], ""
+    if gateway_device is not None:
+        hints += [gateway_device.vendor or "", gateway_device.hostname or "",
+                  gateway_device.netbios or "", gateway_device.mdns_name or ""]
+        for h in getattr(gateway_device, "http", []) or []:
+            hints += [getattr(h, "server", "") or "", getattr(h, "title", "") or "",
+                      getattr(h, "powered_by", "") or ""]
+        sd = getattr(gateway_device, "services_detail", {}) or {}
+        upnp = sd.get("upnp") or {}
+        hints += [upnp.get("manufacturer", ""), upnp.get("modelName", ""),
+                  upnp.get("friendlyName", ""), sd.get("ssdp_server", "")]
+        model = (upnp.get("modelName") or "").strip()
+    blob = " ".join(h for h in hints if h and h != "-").lower()
+
+    key = ""
+    for alias, k in _ROUTER_ALIASES.items():
+        if alias in blob:
+            key = k
+            break
+    label = _BRAND_LABELS.get(key, "")
+    admin_url = router_admin_url(env) or "http://192.168.0.1"
+    friendly_url = _FRIENDLY_URLS.get(key, "")
+    return key, label, model, admin_url, friendly_url
+
+
+# Backwards-compatible thin wrapper (older callers used _router_brand()).
+def _router_brand(env, gateway_device=None):
+    return _router_identity(env, gateway_device)[0]
+
+
+def copy_to_clipboard(text):
+    """Best-effort copy of ``text`` to the OS clipboard. Returns True on success."""
+    text = str(text)
+    try:
+        if constants.IS_WINDOWS:
+            p = subprocess.run(["clip"], input=text.encode("utf-8"),
+                               shell=True, check=True)
+            return p.returncode == 0
+        if getattr(constants, "IS_MAC", False):
+            subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
+            return True
+        for cmd in (["xclip", "-selection", "clipboard"],
+                    ["xsel", "--clipboard", "--input"], ["wl-copy"]):
+            try:
+                subprocess.run(cmd, input=text.encode("utf-8"), check=True)
+                return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
+def block_playbook(env, device, gateway_device=None):
+    """
+    Return a lawful, step-by-step plan (list of strings) to remove ONE device
+    from the Wi-Fi via the router's per-device block / blacklist. This is
+    surgical: it disconnects only the target, keeps it out permanently, needs NO
+    Wi-Fi password change and does not affect any other device. Tailored to the
+    detected router brand/model when possible, with a universal fallback. Never a
+    deauth attack (a temporary RF denial-of-service that also disturbs others).
+    """
+    mac = device.mac if device.mac not in ("-", "") else "(MAC unknown)"
+    name = device.best_name()
+    key, label, model, url, friendly = _router_identity(env, gateway_device)
+
+    steps = [
+        "Target device : %s" % name,
+        "MAC to block  : %s" % mac,
+        "Current IP    : %s" % device.ip,
+    ]
+    if label or model:
+        rid = " ".join(x for x in (label, model) if x) or "unknown"
+        steps.append("Your router   : %s   (admin: %s)" % (rid, url))
+    else:
+        steps.append("Your router   : admin at %s" % url)
+    steps += [
+        "",
+        "This blocks ONLY this device. Everyone else stays connected and you do",
+        "NOT need to change the Wi-Fi password.",
+        "",
+    ]
+
+    guide = _ROUTER_GUIDES.get(key)
+    if guide:
+        steps.append("%s -- block just this device:" % (label or "Your router"))
+        steps += guide
+        if key not in _APP_ONLY:
+            steps.append("")
+            steps.append("Generic fallback if the menu names differ:")
+    else:
+        steps.append("How to block it on your router:")
+
+    if key not in _APP_ONLY:
+        steps += [
+            "1. Open the router admin page:  %s" % url,
+            "   (login is usually on a sticker on the router).",
+            "2. Find 'Access Control' / 'MAC Filtering' / 'Blacklist' /",
+            "   'Device Blocking' / 'Parental Controls'.",
+            "3. Add the MAC  %s  to the BLOCK / DENY list and Save." % mac,
+            "   -> The device is dropped immediately and cannot reconnect.",
+        ]
+        if friendly:
+            steps.append("   Tip: you can also reach the panel at  %s" % friendly)
+
+    steps += [
+        "",
+        "Optional hardening (only if you suspect someone who fakes MAC",
+        "addresses): change the Wi-Fi password + enable WPA3, and disable WPS.",
+    ]
+    if device.randomized_mac:
+        steps += [
+            "",
+            "NOTE: this device shows a RANDOMIZED MAC. If it rotates its MAC it",
+            "may rejoin with a new one -- then the optional password change is the",
+            "reliable lock-out. Use [B]->mark-blocked so SCANFY re-alerts you if",
+            "it comes back.",
+        ]
+    return steps
 '''
 
 # ---------------------------------------------------------------------------
@@ -1834,25 +4472,6 @@ def default_cred_hint(service_name):
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.discovery
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.discovery'] = r'''"""
-Host discovery engines.
-
-Each engine returns a mapping ``{ip: info_dict}`` where ``info_dict`` may carry
-keys such as ``mac``, ``method``, ``mdns_name``, ``ttl``, ``latency`` etc. The
-:mod:`orchestrator` merges the outputs of every enabled engine into a single
-deduplicated host set.
-"""
-
-from . import (environment, icmp, tcp, udp, arp, mdns, ssdp, wsd, netbios,
-               orchestrator)
-
-__all__ = ["environment", "icmp", "tcp", "udp", "arp", "mdns", "ssdp", "wsd",
-           "netbios", "orchestrator"]
-'''
-
-# ---------------------------------------------------------------------------
 # module: scanfyx.discovery.arp
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.discovery.arp'] = r'''"""
@@ -1878,7 +4497,9 @@ log = get_logger("discovery.arp")
 
 _WIN_ARP_RE = re.compile(
     r"([\d.]+)\s+([\da-fA-F]{2}(?:[-:][\da-fA-F]{2}){5})")
-_NIX_ARP_RE = re.compile(r"\(([\d.]+)\)\s+at\s+([\da-fA-F:]{17})")
+# Linux prints a4:b1:c1:00:11:22; macOS/BSD drop leading zeros (a4:b1:c1:0:11:22)
+_NIX_ARP_RE = re.compile(
+    r"\(([\d.]+)\)\s+at\s+([\da-fA-F]{1,2}(?::[\da-fA-F]{1,2}){5})\b")
 
 
 def read_arp_table():
@@ -2075,26 +4696,109 @@ def _network_for(local_ip, ifaces):
     return ipaddress.ip_network(f"{local_ip}/24", strict=False), "255.255.255.0", "", "-"
 
 
-def get_gateway():
-    try:
-        if constants.IS_WINDOWS:
-            out = subprocess.run(["ipconfig"], capture_output=True, text=True,
-                                 encoding=constants.WIN_ENCODING, errors="ignore").stdout
-            lines = out.splitlines()
-            for i, line in enumerate(lines):
-                if "Gateway" not in line:
-                    continue
-                for cand in [line] + lines[i + 1:i + 3]:
-                    m = re.search(r"(\d{1,3}(?:\.\d{1,3}){3})", cand)
-                    if m and m.group(1) != "0.0.0.0":
-                        return m.group(1)
-        else:
-            out = subprocess.run(["ip", "route"], capture_output=True, text=True).stdout
-            m = re.search(r"default via ([\d.]+)", out)
-            if m:
+# ---------------------------------------------------------------------------
+# Default gateway. Parsers are pure functions over command output so they can
+# be tested against captures from any OS / UI language.
+# ---------------------------------------------------------------------------
+_IPV4 = r"\d{1,3}(?:\.\d{1,3}){3}"
+_ROUTE_ROW_RE = re.compile(
+    r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+(%s)\s+(%s)\s+(\d+)\s*$" % (_IPV4, _IPV4), re.M)
+
+# The ipconfig label for "Default Gateway" in common Windows display languages
+# (matched case-insensitively): EN/PT/IT/DE/NL "gateway", FR, ES, CA, RU, UK,
+# PL, CS/SK, TR, HU, SV/NO/DA, FI, EL, JA, ZH, KO.
+_GATEWAY_WORDS = ("gateway", "passerelle", "puerta de enlace", "porta d'enlla",
+                  "шлюз", "brama", "brána", "ağ geçidi", "átjáró",
+                  "standardgateway", "oletusyhdyskäytävä", "πύλη", "ゲートウェイ",
+                  "网关", "閘道", "게이트웨이")
+
+
+def _parse_route_print(text, local_ip=None):
+    """Windows ``route print -4``: the 0.0.0.0/0 row is language-independent.
+    Prefers the route whose interface is ``local_ip``, else the lowest metric."""
+    rows = [(gw, iface, int(metric)) for gw, iface, metric in _ROUTE_ROW_RE.findall(text)]
+    rows = [r for r in rows if r[0] != "0.0.0.0"]
+    if not rows:
+        return None
+    for gw, iface, _ in rows:
+        if local_ip and iface == local_ip:
+            return gw
+    return min(rows, key=lambda r: r[2])[0]
+
+
+def _parse_ipconfig_gateway(text):
+    """Fallback: the IPv4 on/after the localized 'Default Gateway' label."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        low = line.lower()
+        if not any(w in low for w in _GATEWAY_WORDS):
+            continue
+        for cand in [line] + lines[i + 1:i + 3]:
+            m = re.search("(%s)" % _IPV4, cand)
+            if m and m.group(1) != "0.0.0.0":
                 return m.group(1)
-    except Exception as exc:
-        log.debug("gateway detection failed: %s", exc)
+    return None
+
+
+def _parse_ip_route(text):
+    m = re.search(r"default via (%s)" % _IPV4, text)
+    return m.group(1) if m else None
+
+
+def _parse_proc_net_route(text):
+    """Linux /proc/net/route: gateway of the 00000000 destination (hex, LE)."""
+    for line in text.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 3 and parts[1] == "00000000" and parts[2] != "00000000":
+            try:
+                raw = bytes.fromhex(parts[2])[::-1]
+                return ".".join(str(b) for b in raw)
+            except ValueError:
+                continue
+    return None
+
+
+def _parse_bsd_route(text):
+    """macOS / BSD ``route -n get default``."""
+    m = re.search(r"gateway:\s*(%s)" % _IPV4, text)
+    return m.group(1) if m else None
+
+
+def _run(cmd, windows=False):
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=10,
+                          encoding=constants.WIN_ENCODING if windows else "utf-8",
+                          errors="ignore").stdout
+
+
+def get_gateway(local_ip=None):
+    """Default IPv4 gateway, independent of the OS display language."""
+    attempts = []
+    if constants.IS_WINDOWS:
+        attempts = [(["route", "print", "-4", "0.0.0.0"],
+                     lambda t: _parse_route_print(t, local_ip), True),
+                    (["ipconfig"], _parse_ipconfig_gateway, True)]
+    elif constants.IS_MAC:
+        attempts = [(["route", "-n", "get", "default"], _parse_bsd_route, False),
+                    (["netstat", "-rn", "-f", "inet"],
+                     lambda t: (re.search(r"^default\s+(%s)" % _IPV4, t, re.M)
+                                or [None, None])[1], False)]
+    else:
+        attempts = [(["ip", "route"], _parse_ip_route, False)]
+    for cmd, parse, win in attempts:
+        try:
+            gw = parse(_run(cmd, windows=win))
+            if gw:
+                return gw
+        except Exception as exc:
+            log.debug("gateway via %s failed: %s", cmd[0], exc)
+    if not constants.IS_WINDOWS:
+        try:
+            with open("/proc/net/route") as f:
+                gw = _parse_proc_net_route(f.read())
+            if gw:
+                return gw
+        except Exception:
+            pass
     return "-"
 
 
@@ -2163,7 +4867,7 @@ def detect(with_public_ip=True):
     env.interfaces = _enumerate_interfaces()
     env.network, env.netmask, env.primary_iface, env.mac = _network_for(
         env.local_ip, env.interfaces)
-    env.gateway = get_gateway()
+    env.gateway = get_gateway(env.local_ip)
     env.dns_servers = get_dns_servers()
     if with_public_ip:
         env.public_ip, env.isp, env.geo = get_public_ip()
@@ -2190,7 +4894,23 @@ from ..utils import concurrency
 log = get_logger("discovery.icmp")
 
 _TTL_RE = re.compile(r"ttl[=\s]*(\d+)", re.IGNORECASE)
-_LAT_RE = re.compile(r"(?:time|tempo)[=<]\s*([\d.]+)\s*ms", re.IGNORECASE)
+# The word before the round-trip time is localized (time / tempo / tiempo /
+# temps / Zeit / время / 時間 ...), so match the value itself: a number right
+# after '=' or '<' followed by the millisecond unit (ms, or мс on Cyrillic).
+_LAT_RE = re.compile(r"[=<]\s*(\d+(?:[.,]\d+)?)\s*(?:ms|мс)", re.IGNORECASE)
+
+
+def parse_ping(out, windows=None):
+    """Extract (ttl, latency_ms) from one ping reply in any language.
+    Returns None when there is no real echo reply."""
+    windows = constants.IS_WINDOWS if windows is None else windows
+    ttl_m = _TTL_RE.search(out or "")
+    # On Windows an unreachable host can still exit 0; require a real TTL reply.
+    if windows and not ttl_m:
+        return None
+    lat_m = _LAT_RE.search(out or "")
+    return (int(ttl_m.group(1)) if ttl_m else None,
+            float(lat_m.group(1).replace(",", ".")) if lat_m else None)
 
 
 def ping_once(ip, timeout_ms=600):
@@ -2210,18 +4930,11 @@ def ping_once(ip, timeout_ms=600):
         return None
     if r.returncode != 0:
         return None
-    out = r.stdout
-    ttl_m = _TTL_RE.search(out)
-    # On Windows an unreachable host can still exit 0; require a real TTL reply.
-    if constants.IS_WINDOWS and not ttl_m:
+    parsed = parse_ping(r.stdout)
+    if parsed is None:
         return None
-    lat_m = _LAT_RE.search(out)
-    return {
-        "ip": ip,
-        "ttl": int(ttl_m.group(1)) if ttl_m else None,
-        "latency": float(lat_m.group(1)) if lat_m else None,
-        "method": "icmp",
-    }
+    ttl, latency = parsed
+    return {"ip": ip, "ttl": ttl, "latency": latency, "method": "icmp"}
 
 
 def sweep(network, timeout_ms=600, max_workers=128, on_step=None, stop_event=None):
@@ -2373,6 +5086,39 @@ from ..utils import concurrency, netutils
 
 log = get_logger("discovery.netbios")
 
+# One row of the name table: NAME <suffix> TYPE status. The TYPE / status words
+# and the "MAC Address" label are translated by Windows (UNIQUE / ÚNICO /
+# EINDEUTIG ..., GROUP / GRUPO / GRUPPE / GROUPE / GRUPPO / ГРУППА ...), so the
+# parser relies on the NetBIOS suffixes and on the MAC format instead.
+_NB_ROW_RE = re.compile(r"^\s*([^\s<]{1,16})\s*<([0-9A-Fa-f]{2})>\s+(\S+)", re.M)
+_MAC_RE = re.compile(r"\b([0-9A-Fa-f]{2}(?:-[0-9A-Fa-f]{2}){5})\b")
+_GROUP_ONLY_SUFFIXES = {"1C", "1D", "1E"}      # domain / master browser / election
+
+
+def _is_group_word(word):
+    w = word.lower()
+    return w.startswith(("gr", "гр")) or w in ("グループ", "组", "群組", "그룹")
+
+
+def parse_nbtstat(text):
+    """Parse ``nbtstat -A`` output in any Windows language."""
+    result = {"netbios": "-", "workgroup": "-", "mac": "-"}
+    rows = [(n.strip(), s.upper(), w) for n, s, w in _NB_ROW_RE.findall(text or "")]
+    groups = {n for n, s, w in rows if _is_group_word(w) or s in _GROUP_ONLY_SUFFIXES}
+    for name, suffix, word in rows:
+        group_row = _is_group_word(word) or suffix in _GROUP_ONLY_SUFFIXES
+        if suffix in ("00", "20") and not group_row and name not in groups \
+                and result["netbios"] == "-":
+            result["netbios"] = name
+        if suffix in ("00", "1E") and group_row and result["workgroup"] == "-":
+            result["workgroup"] = name
+    for mac in _MAC_RE.findall(text or ""):
+        norm = netutils.normalize_mac(mac)
+        if norm not in ("-", "00:00:00:00:00:00"):
+            result["mac"] = norm
+            break
+    return result
+
 
 def query(ip):
     """Return {"netbios", "workgroup", "mac"} for a single host."""
@@ -2382,17 +5128,7 @@ def query(ip):
             r = subprocess.run(["nbtstat", "-A", str(ip)], capture_output=True,
                                text=True, encoding=constants.WIN_ENCODING,
                                errors="ignore", timeout=4)
-            text = r.stdout
-            for line in text.splitlines():
-                m = re.match(r"\s*([^\s<]+)\s+<00>\s+UNIQUE", line)
-                if m and result["netbios"] == "-":
-                    result["netbios"] = m.group(1).strip()
-                mg = re.match(r"\s*([^\s<]+)\s+<00>\s+GROUP", line)
-                if mg and result["workgroup"] == "-":
-                    result["workgroup"] = mg.group(1).strip()
-            mac_m = re.search(r"MAC Address\s*=\s*([\dA-Fa-f-]{17})", text)
-            if mac_m:
-                result["mac"] = netutils.normalize_mac(mac_m.group(1))
+            result = parse_nbtstat(r.stdout)
         else:
             r = subprocess.run(["nmblookup", "-A", str(ip)], capture_output=True,
                                text=True, timeout=4)
@@ -2960,228 +5696,6 @@ def discover(timeout=3.0):
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.engine
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.engine'] = r'''"""
-The SCANFY scan pipeline.
-
-Ties every subsystem together into one flow:
-
-    environment -> discovery -> port scan -> service fingerprint ->
-    classification -> security analysis -> topology -> ScanResult
-
-A ``progress`` object (duck-typed with ``phase(name, total)`` and ``step()``)
-receives feedback for the UI; :class:`NullProgress` is used for headless runs.
-"""
-
-import platform
-import time
-
-from . import constants, classify, topology
-from .config import ScanConfig
-from .discovery import environment, orchestrator as discovery_orch
-from .fingerprint import orchestrator as fp_orch
-from .fingerprint import os_detect
-from .logging_setup import get_logger
-from .models import ScanResult, ScanMeta, now_str
-from .portscan import scanner, nmap_integration
-from .security import analyzer
-from .discovery import arp as arp_disc
-
-log = get_logger("engine")
-
-
-class NullProgress:
-    def phase(self, name, total):
-        pass
-
-    def step(self, n=1):
-        pass
-
-    def done(self):
-        pass
-
-
-def engine_tag():
-    return constants.capability_summary()
-
-
-def detect_environment(with_public_ip=True):
-    return environment.detect(with_public_ip=with_public_ip)
-
-
-def run_scan(config, env=None, network=None, progress=None, stop_event=None,
-             scan_type="Deep"):
-    """Full network scan. Returns a populated :class:`ScanResult`."""
-    progress = progress or NullProgress()
-    start = time.monotonic()
-
-    if env is None:
-        env = detect_environment(with_public_ip=config.geoip_public)
-    net = network or env.network
-
-    # 1. discovery
-    devices, disc_report = discovery_orch.run(
-        net, config, env, progress=progress, stop_event=stop_event)
-
-    # 2. port scan
-    ports = scanner.select_ports(config)
-    scanner.scan_hosts(devices, ports, config, progress=progress,
-                       stop_event=stop_event)
-
-    # 3. service fingerprinting
-    fp_orch.enrich(devices, config, env, progress=progress)
-
-    # 4. classification
-    classify.classify_all(devices)
-
-    # 5. security analysis
-    if config.security:
-        if progress:
-            progress.phase("Security analysis", len(devices))
-        for d in devices:
-            analyzer.analyze_device(d)
-            if progress:
-                progress.step()
-
-    # 6. build result
-    elapsed = round(time.monotonic() - start, 1)
-    meta = _build_meta(config, env, net, devices, disc_report, elapsed, scan_type)
-    result = ScanResult(devices, meta)
-    topology.annotate_hop_counts(result)
-    if progress:
-        progress.done()
-    log.info("scan complete: %d devices, grade %s in %ss",
-             len(devices), result.risk_grade(), elapsed)
-    return result
-
-
-def run_quick_scan(config, env=None, network=None, progress=None, stop_event=None):
-    """A fast pass: discovery + light identification, no deep fingerprinting."""
-    quick_cfg = ScanConfig().apply_profile("fast")
-    quick_cfg.http = False
-    quick_cfg.tls = False
-    quick_cfg.snmp = False
-    quick_cfg.udp = False
-    quick_cfg.report_dir = config.report_dir
-    return run_scan(quick_cfg, env=env, network=network, progress=progress,
-                    stop_event=stop_event, scan_type="Quick")
-
-
-def run_single_host(ip, config, env=None, progress=None, use_nmap=None):
-    """Deep-scan a single host and return a one-device ScanResult."""
-    from .models import Device
-    from .discovery import icmp
-    progress = progress or NullProgress()
-    if env is None:
-        env = detect_environment(with_public_ip=False)
-
-    p = icmp.ping_once(ip, config.ping_timeout_ms)
-    macs = arp_disc.read_arp_table()
-    dev = Device(ip=str(ip), mac=macs.get(str(ip), "-"))
-    if p:
-        dev.ttl = p.get("ttl")
-        dev.latency_ms = p.get("latency")
-        dev.discovery_methods = ["icmp"]
-    else:
-        dev.discovery_methods = ["manual"]
-    dev.is_gateway = (str(ip) == env.gateway)
-    dev.is_self = (str(ip) == env.local_ip)
-    devices = [dev]
-
-    ports = scanner.select_ports(config)
-    scanner.scan_hosts(devices, ports, config, progress=progress)
-
-    # optional nmap enrichment
-    if (use_nmap or config.nmap) and nmap_integration.available():
-        if progress:
-            progress.phase("nmap service/OS detection", 1)
-        nres = nmap_integration.scan_host(
-            str(ip), ports=dev.open_ports() or None,
-            service_version=True, os_detect=True)
-        if nres:
-            _apply_nmap(dev, nres)
-        if progress:
-            progress.step()
-
-    fp_orch.enrich(devices, config, env, progress=progress)
-    classify.classify_all(devices)
-    if config.security:
-        analyzer.analyze_device(dev)
-
-    meta = ScanMeta(
-        generated=now_str(), scan_type="Single-host (Deep)",
-        profile=config.profile, network=str(ip), local_ip=env.local_ip,
-        gateway=env.gateway, dns=env.dns_servers, methods=dev.discovery_methods,
-        engine=engine_tag(), duration=0.0, count=1,
-        hostname=constants.HOSTNAME, platform=platform.platform())
-    return ScanResult(devices, meta)
-
-
-def _apply_nmap(dev, nres):
-    for np in nres.get("ports", []):
-        for pr in dev.ports:
-            if pr.port == np["port"]:
-                if np.get("product"):
-                    pr.product = np["product"]
-                if np.get("version"):
-                    pr.version = np["version"]
-                if np.get("service"):
-                    pr.service = np["service"] or pr.service
-                if np.get("extra"):
-                    pr.extra["nmap"] = np["extra"]
-                break
-    if nres.get("os"):
-        dev.services_detail["nmap_os"] = nres["os"][0]["name"]
-
-
-def _build_meta(config, env, net, devices, disc_report, elapsed, scan_type):
-    return ScanMeta(
-        generated=now_str(),
-        scan_type=scan_type,
-        profile=config.profile,
-        network=str(net),
-        local_ip=env.local_ip,
-        gateway=env.gateway,
-        dns=env.dns_servers,
-        public_ip=env.public_ip,
-        isp=env.isp,
-        geo=env.geo,
-        methods=disc_report.methods_used,
-        engine=engine_tag(),
-        duration=elapsed,
-        count=len(devices),
-        hostname=constants.HOSTNAME,
-        platform=platform.platform(),
-    )
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.fingerprint
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.fingerprint'] = r'''"""
-Per-service deep fingerprinting.
-
-Each module probes one protocol family and enriches a :class:`Device`:
-
-    http       HTTP/HTTPS headers, title, technologies, security headers
-    tls        X.509 certificate details and TLS version/weaknesses
-    ssh        SSH protocol banner and host-key/algorithm hints
-    snmp       SNMP sysDescr / sysName via community strings
-    smb        SMB dialect / OS / shares (best effort)
-    dns_fp     reverse DNS and extra name records
-    os_detect  OS family from TTL, banners and (optional) nmap
-
-The :mod:`orchestrator` dispatches the right fingerprinters per open port.
-"""
-
-from . import http, tls, ssh, snmp, smb, dns_fp, os_detect, probes, orchestrator
-
-__all__ = ["http", "tls", "ssh", "snmp", "smb", "dns_fp", "os_detect",
-           "probes", "orchestrator"]
-'''
-
-# ---------------------------------------------------------------------------
 # module: scanfyx.fingerprint.dns_fp
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.fingerprint.dns_fp'] = r'''"""
@@ -3529,8 +6043,6 @@ def _apply_banner_to_port(dev, port, product, version, banner):
 
 
 def _apply_discovery_names(dev):
-    if dev.mdns_name in ("-", "") :
-        pass
     # promote upnp friendlyName into hostname if nothing better exists
     upnp = dev.services_detail.get("upnp") or {}
     if dev.hostname in ("-", "") and upnp.get("friendlyName"):
@@ -4369,491 +6881,6 @@ def weaknesses(info):
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.logging_setup
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.logging_setup'] = r'''"""
-Logging configuration. Logs go to ``~/.scanfy/scanfy.log`` at DEBUG level and,
-optionally, a concise stream to the console. Noisy third-party loggers
-(scapy, urllib3, zeroconf) are silenced.
-"""
-
-import logging
-import logging.handlers
-
-from . import constants
-
-_CONFIGURED = False
-
-
-def setup_logging(verbose=False):
-    global _CONFIGURED
-    if _CONFIGURED:
-        return logging.getLogger("scanfy")
-
-    logger = logging.getLogger("scanfy")
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = False
-
-    # rotating file handler
-    try:
-        fh = logging.handlers.RotatingFileHandler(
-            constants.LOG_PATH, maxBytes=1_000_000, backupCount=2,
-            encoding="utf-8")
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(logging.Formatter(
-            "%(asctime)s %(levelname)-7s %(name)s: %(message)s"))
-        logger.addHandler(fh)
-    except Exception:
-        pass
-
-    if verbose:
-        sh = logging.StreamHandler()
-        sh.setLevel(logging.INFO)
-        sh.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
-        logger.addHandler(sh)
-
-    # silence noisy libraries
-    for noisy in ("scapy", "scapy.runtime", "scapy.loading", "urllib3",
-                  "requests", "zeroconf", "asyncio", "chardet"):
-        logging.getLogger(noisy).setLevel(logging.CRITICAL)
-
-    _CONFIGURED = True
-    return logger
-
-
-def get_logger(name="scanfy"):
-    if not _CONFIGURED:
-        setup_logging()
-    return logging.getLogger(name if name.startswith("scanfy") else f"scanfy.{name}")
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.models
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.models'] = r'''"""
-Typed data model for SCANFY.
-
-These dataclasses are the single source of truth passed between the discovery,
-scanning, fingerprinting, security and reporting layers. Every class provides
-``to_dict`` for JSON/report serialisation and, where useful, ``from_dict``.
-"""
-
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-
-from .constants import SEVERITY_WEIGHT, severity_rank
-
-
-# ---------------------------------------------------------------------------
-# Ports & services
-# ---------------------------------------------------------------------------
-@dataclass
-class PortResult:
-    port: int
-    protocol: str = "tcp"
-    state: str = "open"
-    service: str = ""
-    category: str = "misc"
-    description: str = ""
-    banner: str = ""
-    product: str = ""
-    version: str = ""
-    extra: Dict[str, Any] = field(default_factory=dict)
-
-    def label(self):
-        return f"{self.port}/{self.service or self.protocol}"
-
-    def to_dict(self):
-        return asdict(self)
-
-
-# ---------------------------------------------------------------------------
-# TLS certificate info
-# ---------------------------------------------------------------------------
-@dataclass
-class TlsInfo:
-    port: int = 443
-    tls_version: str = ""
-    cipher: str = ""
-    subject: str = ""
-    issuer: str = ""
-    subject_cn: str = ""
-    issuer_cn: str = ""
-    not_before: str = ""
-    not_after: str = ""
-    san: List[str] = field(default_factory=list)
-    key_type: str = ""
-    key_bits: int = 0
-    sig_algorithm: str = ""
-    serial: str = ""
-    self_signed: bool = False
-    expired: bool = False
-    not_yet_valid: bool = False
-    days_to_expiry: Optional[int] = None
-
-    def to_dict(self):
-        return asdict(self)
-
-
-# ---------------------------------------------------------------------------
-# HTTP info
-# ---------------------------------------------------------------------------
-@dataclass
-class HttpInfo:
-    port: int = 80
-    scheme: str = "http"
-    url: str = ""
-    status: Optional[int] = None
-    server: str = ""
-    title: str = ""
-    powered_by: str = ""
-    content_type: str = ""
-    location: str = ""
-    headers: Dict[str, str] = field(default_factory=dict)
-    technologies: List[Dict[str, str]] = field(default_factory=list)
-    device_kind: str = ""
-    auth: str = ""
-    favicon_hash: str = ""
-
-    def to_dict(self):
-        return asdict(self)
-
-
-# ---------------------------------------------------------------------------
-# Security finding
-# ---------------------------------------------------------------------------
-@dataclass
-class Finding:
-    severity: str = "info"
-    category: str = "general"
-    title: str = ""
-    description: str = ""
-    recommendation: str = ""
-    port: Optional[int] = None
-    service: str = ""
-    cves: List[str] = field(default_factory=list)
-    evidence: str = ""
-
-    def weight(self):
-        return SEVERITY_WEIGHT.get(self.severity, 0.2)
-
-    def rank(self):
-        return severity_rank(self.severity)
-
-    def to_dict(self):
-        return asdict(self)
-
-
-# ---------------------------------------------------------------------------
-# Device
-# ---------------------------------------------------------------------------
-@dataclass
-class Device:
-    ip: str
-    mac: str = "-"
-    vendor: str = "-"
-    hostname: str = "-"
-    netbios: str = "-"
-    mdns_name: str = "-"
-    workgroup: str = "-"
-    dns_names: List[str] = field(default_factory=list)
-    ttl: Optional[int] = None
-    os_guess: str = "-"
-    os_confidence: str = ""
-    latency_ms: Optional[float] = None
-    jitter_ms: Optional[float] = None
-    discovery_methods: List[str] = field(default_factory=list)
-    ports: List[PortResult] = field(default_factory=list)
-    http: List[HttpInfo] = field(default_factory=list)
-    tls: List[TlsInfo] = field(default_factory=list)
-    services_detail: Dict[str, Any] = field(default_factory=dict)
-    device_type: str = "Unknown"
-    device_kind: str = ""
-    tags: List[str] = field(default_factory=list)
-    findings: List[Finding] = field(default_factory=list)
-    risk_score: float = 0.0
-    risk_label: str = "info"
-    randomized_mac: bool = False
-    is_gateway: bool = False
-    is_self: bool = False
-    first_seen: str = ""
-    last_seen: str = ""
-
-    # -- helpers -----------------------------------------------------------
-    def open_ports(self):
-        return sorted(p.port for p in self.ports if p.state == "open")
-
-    def has_port(self, port):
-        return any(p.port == port and p.state == "open" for p in self.ports)
-
-    def port_set(self):
-        return {p.port for p in self.ports if p.state == "open"}
-
-    def service_names(self):
-        return [p.service for p in self.ports if p.service]
-
-    def add_port(self, port_result):
-        if not any(p.port == port_result.port and p.protocol == port_result.protocol
-                   for p in self.ports):
-            self.ports.append(port_result)
-
-    def add_finding(self, finding):
-        self.findings.append(finding)
-
-    def add_tag(self, tag):
-        if tag and tag not in self.tags:
-            self.tags.append(tag)
-
-    def best_name(self):
-        for candidate in (self.hostname, self.mdns_name, self.netbios):
-            if candidate and candidate not in ("-", ""):
-                return candidate
-        return self.ip
-
-    def ports_str(self, limit=None):
-        items = [f"{p.port}/{p.service or p.protocol}" for p in
-                 sorted(self.ports, key=lambda x: x.port)]
-        if limit and len(items) > limit:
-            return ", ".join(items[:limit]) + f" (+{len(items) - limit})"
-        return ", ".join(items) if items else "-"
-
-    def max_severity(self):
-        if not self.findings:
-            return "info"
-        return min((f.severity for f in self.findings), key=severity_rank)
-
-    def count_findings(self):
-        counts = {}
-        for f in self.findings:
-            counts[f.severity] = counts.get(f.severity, 0) + 1
-        return counts
-
-    def to_dict(self):
-        d = asdict(self)
-        # asdict already recursed into nested dataclasses (ports/http/tls/findings)
-        return d
-
-
-# ---------------------------------------------------------------------------
-# Scan metadata & result
-# ---------------------------------------------------------------------------
-@dataclass
-class ScanMeta:
-    generated: str = ""
-    scan_type: str = "Quick"
-    profile: str = "default"
-    network: str = ""
-    local_ip: str = ""
-    gateway: str = "-"
-    dns: List[str] = field(default_factory=list)
-    public_ip: str = ""
-    isp: str = ""
-    geo: str = ""
-    methods: List[str] = field(default_factory=list)
-    engine: str = ""
-    duration: float = 0.0
-    count: int = 0
-    hostname: str = ""
-    platform: str = ""
-
-    def to_dict(self):
-        return asdict(self)
-
-
-class ScanResult:
-    """A completed scan: the device list plus metadata and aggregates."""
-
-    def __init__(self, devices, meta):
-        self.devices: List[Device] = devices
-        self.meta: ScanMeta = meta
-
-    # -- aggregations ------------------------------------------------------
-    def all_findings(self):
-        out = []
-        for d in self.devices:
-            for f in d.findings:
-                out.append((d, f))
-        out.sort(key=lambda pair: severity_rank(pair[1].severity))
-        return out
-
-    def severity_counts(self):
-        counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
-        for d in self.devices:
-            for f in d.findings:
-                counts[f.severity] = counts.get(f.severity, 0) + 1
-        return counts
-
-    def type_distribution(self):
-        dist = {}
-        for d in self.devices:
-            dist[d.device_type] = dist.get(d.device_type, 0) + 1
-        return sorted(dist.items(), key=lambda kv: -kv[1])
-
-    def vendor_distribution(self):
-        dist = {}
-        for d in self.devices:
-            v = d.vendor if d.vendor not in ("-", "", "unknown") else "unknown"
-            dist[v] = dist.get(v, 0) + 1
-        return sorted(dist.items(), key=lambda kv: -kv[1])
-
-    def service_distribution(self):
-        dist = {}
-        for d in self.devices:
-            for p in d.ports:
-                if p.state == "open":
-                    key = p.service or str(p.port)
-                    dist[key] = dist.get(key, 0) + 1
-        return sorted(dist.items(), key=lambda kv: -kv[1])
-
-    def category_distribution(self):
-        dist = {}
-        for d in self.devices:
-            for p in d.ports:
-                if p.state == "open":
-                    dist[p.category] = dist.get(p.category, 0) + 1
-        return sorted(dist.items(), key=lambda kv: -kv[1])
-
-    def total_open_ports(self):
-        return sum(len(d.open_ports()) for d in self.devices)
-
-    def riskiest(self, n=5):
-        return sorted(self.devices, key=lambda d: -d.risk_score)[:n]
-
-    def overall_risk_score(self):
-        if not self.devices:
-            return 0.0
-        return round(sum(d.risk_score for d in self.devices), 1)
-
-    def risk_grade(self):
-        counts = self.severity_counts()
-        if counts["critical"]:
-            return "F"
-        if counts["high"] >= 3:
-            return "E"
-        if counts["high"]:
-            return "D"
-        if counts["medium"] >= 3:
-            return "C"
-        if counts["medium"]:
-            return "B"
-        return "A"
-
-    def to_dict(self):
-        return {
-            "meta": self.meta.to_dict(),
-            "aggregates": {
-                "severity": self.severity_counts(),
-                "types": self.type_distribution(),
-                "services": self.service_distribution(),
-                "risk_score": self.overall_risk_score(),
-                "risk_grade": self.risk_grade(),
-            },
-            "devices": [d.to_dict() for d in self.devices],
-        }
-
-
-def now_str():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.monitor
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.monitor'] = r'''"""
-Continuous network monitor.
-
-Repeatedly runs a lightweight discovery pass on an interval, compares each pass
-to a baseline and emits events when a device joins or leaves the network. Useful
-for spotting rogue/unexpected devices. The heavy scanning subsystems are not
-used here - just fast multi-method discovery - so it stays cheap enough to run
-for long periods.
-"""
-
-import time
-
-from .logging_setup import get_logger
-from .utils import netutils
-
-log = get_logger("monitor")
-
-
-class NetworkMonitor:
-    def __init__(self, network, config, env, discovery_fn, on_event=None):
-        """
-        ``discovery_fn(network, config, env)`` -> list[Device].
-        ``on_event(event_type, device)`` is called for 'join'/'leave'.
-        """
-        self.network = network
-        self.config = config
-        self.env = env
-        self.discovery_fn = discovery_fn
-        self.on_event = on_event
-        self.baseline = {}     # key -> device
-        self.running = False
-
-    @staticmethod
-    def _key(dev):
-        return dev.mac if dev.mac and dev.mac != "-" else dev.ip
-
-    def _snapshot(self):
-        devices = self.discovery_fn(self.network, self.config, self.env)
-        return {self._key(d): d for d in devices}
-
-    def establish_baseline(self):
-        self.baseline = self._snapshot()
-        log.info("baseline established: %d devices", len(self.baseline))
-        return self.baseline
-
-    def poll_once(self):
-        """Run one comparison pass. Returns (joined, left) device lists."""
-        current = self._snapshot()
-        joined = [d for k, d in current.items() if k not in self.baseline]
-        left = [d for k, d in self.baseline.items() if k not in current]
-        for d in joined:
-            if self.on_event:
-                self.on_event("join", d)
-        for d in left:
-            if self.on_event:
-                self.on_event("leave", d)
-        # merge: keep known + add new; drop long-gone
-        self.baseline = current
-        return joined, left
-
-    def run(self, interval=30, iterations=None, stop_event=None):
-        """Blocking monitor loop. ``iterations=None`` runs until interrupted."""
-        self.running = True
-        if not self.baseline:
-            self.establish_baseline()
-        count = 0
-        try:
-            while self.running:
-                if stop_event is not None and stop_event.is_set():
-                    break
-                time.sleep(interval)
-                self.poll_once()
-                count += 1
-                if iterations is not None and count >= iterations:
-                    break
-        finally:
-            self.running = False
-        return count
-
-    def stop(self):
-        self.running = False
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.portscan
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.portscan'] = r'''"""Port scanning, banner grabbing and optional nmap integration."""
-
-from . import scanner, banner, nmap_integration
-
-__all__ = ["scanner", "banner", "nmap_integration"]
-'''
-
-# ---------------------------------------------------------------------------
 # module: scanfyx.portscan.banner
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.portscan.banner'] = r'''"""
@@ -4964,13 +6991,25 @@ def grab(ip, port, timeout=3.0):
 # module: scanfyx.portscan.nmap_integration
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.portscan.nmap_integration'] = r'''"""
-Optional nmap integration.
+Optional nmap integration (deep engine).
 
-When the ``nmap`` binary is installed and python-nmap is importable, SCANFY can
-delegate service/version detection and OS fingerprinting to nmap for a single
-host (used by the deep single-host dossier). Everything degrades gracefully if
-nmap is not present.
+When the ``nmap`` binary is installed and python-nmap is importable, SCANFY
+delegates deep service/version detection, OS fingerprinting and NSE scripting to
+nmap. In the *thorough* profile this now runs against **every** discovered host
+(in parallel), not just single-host mode -- turning nmap's output into:
+
+  * enriched port products/versions (``-sV --version-all``, intensity 9),
+  * an authoritative OS guess (``-O --osscan-guess``),
+  * CPE identifiers per service,
+  * NSE script results (``default``, ``banner`` and ``vuln`` categories) that
+    become extra security findings when a service is flagged VULNERABLE.
+
+Everything degrades gracefully when nmap is missing, when a host is unreachable,
+or when the process lacks the privileges needed for ``-O`` / ``--traceroute``
+(in which case SCANFY automatically retries without those raw-socket options).
 """
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .. import constants
 from ..logging_setup import get_logger
@@ -4982,58 +7021,214 @@ def available():
     return constants.HAS_NMAP_BINARY
 
 
-def scan_host(ip, ports=None, service_version=True, os_detect=False,
-              timeout=120):
-    """
-    Run nmap against a single host. Returns a normalised dict:
-        {ports: [{port, proto, state, service, product, version, extra}],
-         os: [{name, accuracy}], raw: <nmap dict>}
-    Returns None if nmap is unavailable or the scan fails.
-    """
-    if not available():
-        return None
+# ---------------------------------------------------------------------------
+# Argument assembly
+# ---------------------------------------------------------------------------
+def build_arguments(service_version=True, os_detect=False, aggressive=False,
+                    scripts=False, vuln=False, host_timeout=0, traceroute=None):
+    """Assemble the nmap argument string for the requested power level."""
+    if traceroute is None:
+        traceroute = aggressive
+    args = ["-Pn"]
+    if service_version:
+        args.append("-sV")
+        if aggressive:
+            args.append("--version-all")        # version-intensity 9 (maximum)
+    if os_detect:
+        args.append("-O")
+        if aggressive:
+            args.append("--osscan-guess")        # guess even when not certain
+    categories = []
+    if scripts:
+        categories += ["default", "banner"]
+    if vuln:
+        categories.append("vuln")
+    if categories:
+        # dict.fromkeys keeps order while removing duplicates
+        args.append("--script " + ",".join(dict.fromkeys(categories)))
+    args.append("-T4" if aggressive else "-T3")
+    if traceroute:
+        args.append("--traceroute")
+    if host_timeout and host_timeout > 0:
+        args.append("--host-timeout %ds" % int(host_timeout))
+    return " ".join(args)
+
+
+# ---------------------------------------------------------------------------
+# Low-level runner + normaliser
+# ---------------------------------------------------------------------------
+def _run(ip, port_arg, arguments, timeout):
     try:
         import nmap
     except Exception as exc:
         log.debug("python-nmap import failed: %s", exc)
         return None
-
-    args = ["-Pn"]
-    if service_version:
-        args.append("-sV")
-    if os_detect:
-        args.append("-O")
-    port_arg = ",".join(str(p) for p in ports) if ports else None
-
     try:
         scanner = nmap.PortScanner()
-        scanner.scan(hosts=str(ip), ports=port_arg,
-                     arguments=" ".join(args), timeout=timeout)
+        scanner.scan(hosts=str(ip), ports=port_arg, arguments=arguments,
+                     timeout=timeout)
     except Exception as exc:
-        log.debug("nmap scan failed for %s: %s", ip, exc)
+        log.debug("nmap scan failed for %s (%s): %s", ip, arguments, exc)
         return None
-
     if str(ip) not in scanner.all_hosts():
         return None
+    try:
+        return _normalise(scanner[str(ip)])
+    except Exception as exc:
+        log.debug("nmap parse failed for %s: %s", ip, exc)
+        return None
 
-    host = scanner[str(ip)]
-    out = {"ports": [], "os": [], "raw": {}}
+
+def _normalise(host):
+    """Flatten a python-nmap host object into a plain, JSON-safe dict."""
+    out = {"ports": [], "os": [], "hostnames": [], "hostscripts": [],
+           "vendor": "", "mac": "", "uptime": ""}
+
     for proto in host.all_protocols():
         for port in sorted(host[proto].keys()):
             p = host[proto][port]
+            raw_cpe = p.get("cpe")
+            if not raw_cpe:
+                cpes = []
+            elif isinstance(raw_cpe, str):
+                cpes = [c for c in raw_cpe.split("\n") if c.strip()]
+            else:
+                cpes = list(raw_cpe)
+            scripts = {}
+            for sid, sout in (p.get("script") or {}).items():
+                scripts[sid] = (sout or "").strip()
             out["ports"].append({
                 "port": int(port), "proto": proto, "state": p.get("state", ""),
                 "service": p.get("name", ""), "product": p.get("product", ""),
-                "version": p.get("version", ""),
-                "extra": p.get("extrainfo", ""), "cpe": p.get("cpe", ""),
+                "version": p.get("version", ""), "extra": p.get("extrainfo", ""),
+                "cpe": cpes, "scripts": scripts,
             })
+
     try:
-        for match in host.get("osmatch", []):
-            out["os"].append({"name": match.get("name", ""),
-                              "accuracy": match.get("accuracy", "")})
+        for match in host.get("osmatch", []) or []:
+            classes = match.get("osclass", []) or []
+            first = classes[0] if classes else {}
+            out["os"].append({
+                "name": match.get("name", ""),
+                "accuracy": match.get("accuracy", ""),
+                "vendor": first.get("vendor", ""),
+                "family": first.get("osfamily", ""),
+                "type": first.get("type", ""),
+            })
     except Exception:
         pass
+
+    try:
+        for hn in host.get("hostnames", []) or []:
+            name = hn.get("name")
+            if name:
+                out["hostnames"].append(name)
+    except Exception:
+        pass
+
+    try:
+        for s in host.get("hostscript", []) or []:
+            out["hostscripts"].append({"id": s.get("id", ""),
+                                       "output": (s.get("output") or "").strip()})
+    except Exception:
+        pass
+
+    try:
+        addresses = host.get("addresses", {}) or {}
+        out["mac"] = addresses.get("mac", "")
+        vendor = host.get("vendor", {}) or {}
+        if out["mac"] and vendor.get(out["mac"]):
+            out["vendor"] = vendor[out["mac"]]
+    except Exception:
+        pass
+
+    try:
+        if "uptime" in host:
+            out["uptime"] = host["uptime"].get("lastboot", "")
+    except Exception:
+        pass
+
     return out
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+def scan_host(ip, ports=None, service_version=True, os_detect=True,
+              aggressive=False, scripts=False, vuln=False,
+              timeout=300, host_timeout=240):
+    """
+    Run nmap against a single host. Returns a normalised dict::
+
+        {ports: [{port, proto, state, service, product, version, extra,
+                  cpe: [...], scripts: {id: output}}],
+         os: [{name, accuracy, vendor, family, type}],
+         hostnames: [...], hostscripts: [{id, output}],
+         vendor, mac, uptime}
+
+    Returns ``None`` if nmap is unavailable or the scan fails. If ``os_detect``
+    is requested but the first (privileged) attempt fails -- typically because
+    ``-O``/``--traceroute`` need raw sockets and the process is not elevated --
+    SCANFY automatically retries once without those options so version/NSE data
+    is still collected.
+    """
+    if not available():
+        return None
+    port_arg = ",".join(str(p) for p in ports) if ports else None
+
+    args = build_arguments(service_version, os_detect, aggressive,
+                           scripts, vuln, host_timeout)
+    res = _run(ip, port_arg, args, timeout)
+
+    if res is None and (os_detect or aggressive):
+        # Fall back to an unprivileged, connect-safe run (no -O / no traceroute).
+        args = build_arguments(service_version, False, aggressive,
+                               scripts, vuln, host_timeout, traceroute=False)
+        res = _run(ip, port_arg, args, timeout)
+
+    return res
+
+
+def scan_many(targets, aggressive=False, scripts=False, vuln=False,
+              os_detect=True, workers=4, host_timeout=240,
+              per_host_timeout=360, progress=None, stop_event=None):
+    """
+    Run nmap against many hosts concurrently.
+
+    ``targets`` is an iterable of ``(ip, ports_list)`` tuples. Returns a dict
+    ``{ip: normalised_dict}`` for the hosts nmap returned data for. Steps the
+    optional ``progress`` once per completed host and honours ``stop_event``.
+    """
+    results = {}
+    targets = list(targets)
+    if not available() or not targets:
+        return results
+    workers = max(1, min(int(workers or 1), len(targets)))
+
+    def _one(item):
+        ip, ports = item
+        return ip, scan_host(
+            ip, ports=ports or None, os_detect=os_detect, aggressive=aggressive,
+            scripts=scripts, vuln=vuln, timeout=per_host_timeout,
+            host_timeout=host_timeout)
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = {ex.submit(_one, t): t for t in targets}
+        for fut in as_completed(futures):
+            if stop_event is not None and getattr(stop_event, "is_set", lambda: False)():
+                break
+            try:
+                ip, res = fut.result()
+                if res:
+                    results[ip] = res
+            except Exception as exc:
+                log.debug("nmap worker failed: %s", exc)
+            if progress:
+                try:
+                    progress.step()
+                except Exception:
+                    pass
+    return results
 '''
 
 # ---------------------------------------------------------------------------
@@ -5164,40 +7359,6 @@ def quick_scan_single(ip, ports, timeout=0.7):
         if netutils.tcp_connect(ip, port, timeout):
             open_ports.append(port)
     return open_ports
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.report
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.report'] = r'''"""
-Dossier reporting.
-
-Turns a :class:`~scanfyx.models.ScanResult` into shareable artefacts:
-
-    charts      self-contained inline SVG charts (no JS/CDN)
-    html        the full styled HTML reconnaissance dossier
-    markdown    a Markdown dossier
-    exporters   JSON / CSV / XML / TXT
-    pdf         a PDF dossier (requires reportlab)
-
-All formats are written to the configured report directory with a timestamped
-filename.
-"""
-
-from . import charts, html, markdown, exporters, pdf
-
-__all__ = ["charts", "html", "markdown", "exporters", "pdf"]
-
-
-FORMATS = {
-    "html": ("HTML dossier", html.export),
-    "markdown": ("Markdown dossier", markdown.export),
-    "json": ("JSON", exporters.export_json),
-    "csv": ("CSV", exporters.export_csv),
-    "xml": ("XML", exporters.export_xml),
-    "txt": ("Text dossier", exporters.export_txt),
-    "pdf": ("PDF dossier", pdf.export),
-}
 '''
 
 # ---------------------------------------------------------------------------
@@ -5337,15 +7498,28 @@ def severity_bar(counts, width=440, height=26):
 # ---------------------------------------------------------------------------
 # module: scanfyx.report.common
 # ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.report.common'] = r'''"""Shared reporting helpers (output paths, small formatting utilities)."""
+SCANFY_MODULES['scanfyx.report.common'] = r'''"""Shared reporting helpers (output paths, branding, small formatting utilities)."""
 
 import os
 from datetime import datetime
 
-from .. import constants
+from .. import constants, edition
 
 
-def report_path(config, ext, prefix="scanfy_dossier"):
+def report_path(config, ext, prefix=None, kind="dossier"):
+    """
+    Timestamped output path. Without an explicit ``prefix`` the edition decides
+    the file name (e.g. ``scanfy_dossier_YYYYmmdd_HHMMSS.html``).
+    """
+    if prefix is None:
+        client = ""
+        try:
+            from .. import engagement
+            eng = engagement.current()
+            client = eng.client if eng else ""
+        except Exception:
+            pass
+        prefix = edition.report_prefix(kind, client)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = getattr(config, "report_dir", None) or constants.REPORT_DIR_DEFAULT
     try:
@@ -5353,6 +7527,23 @@ def report_path(config, ext, prefix="scanfy_dossier"):
     except Exception:
         out_dir = constants.REPORT_DIR_DEFAULT
     return os.path.join(out_dir, f"{prefix}_{stamp}.{ext}")
+
+
+def engagement_rows(meta):
+    """[(label, value)] describing the engagement / owner context of a scan."""
+    rows = []
+    if getattr(meta, "client", ""):
+        rows += [("Client", meta.client), ("Operator", meta.operator),
+                 ("Authorization", meta.auth_ref),
+                 ("Authorized scope", ", ".join(meta.scope) or "-")]
+    elif getattr(meta, "owner", ""):
+        rows.append(("Prepared for", meta.owner))
+    return rows
+
+
+def doc_title():
+    """'network reconnaissance dossier' / 'network security assessment' ..."""
+    return edition.spec()["doc_title"]
 
 
 def ports_inline(device, limit=None):
@@ -5382,10 +7573,11 @@ Structured exporters: JSON, CSV, XML and a plain-text dossier.
 import csv
 import json
 
-from ..version import MOTTO_EN, MOTTO_PT
+from .. import edition
 from ..security import scorecard as sc_mod
 from ..utils.textutils import esc_xml
-from .common import report_path, ports_inline, latency_str
+from .common import (report_path, ports_inline, latency_str, engagement_rows,
+                     doc_title)
 
 
 # ---------------------------------------------------------------------------
@@ -5480,12 +7672,14 @@ def export_txt(result, config):
     L = []
     bar = "=" * 74
     L.append(bar)
-    L.append("SCANFY - NETWORK RECONNAISSANCE DOSSIER")
+    L.append(f"{edition.product()} - {doc_title().upper()}")
     L.append(bar)
     L.append(f"Generated : {m.generated}")
     L.append(f"Scan type : {m.scan_type} ({m.profile})")
     L.append(f"Network   : {m.network}")
-    L.append(f"Operator  : {m.local_ip}  ({m.hostname})")
+    for k, v in engagement_rows(m):
+        L.append(f"{k[:10]:<10}: {v}")
+    L.append(f"{'Station' if m.client else 'Operator':<10}: {m.local_ip}  ({m.hostname})")
     L.append(f"Gateway   : {m.gateway}")
     L.append(f"DNS       : {', '.join(m.dns) if m.dns else '-'}")
     if m.public_ip:
@@ -5545,7 +7739,7 @@ def export_txt(result, config):
                      f"{(str(fnd.port) + '/' + fnd.service) if fnd.port else '':<16} {fnd.title}")
 
     L.append("\n" + bar)
-    L.append(f"{MOTTO_EN} / {MOTTO_PT}")
+    L.append(" / ".join(edition.footer_lines()))
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(L))
     return path
@@ -5563,20 +7757,16 @@ topology overview, the full device inventory and a detailed per-device dossier
 card for every host. No external resources are referenced.
 """
 
-from ..version import __version__, MOTTO_EN, MOTTO_PT
+from .. import edition
+from ..version import __version__
 from ..utils.textutils import esc_html, esc_attr
 from .. import topology as topo
 from ..security import scorecard as sc_mod
 from . import charts
-from .common import report_path, latency_str
+from .common import report_path, latency_str, engagement_rows, doc_title
 
 
-CSS = """
-:root{
-  --grass:#6abe30;--grass-l:#96dc5a;--grass-d:#4e9120;--leaf:#3fa7a0;
-  --bg:#0c110b;--panel:#141d10;--panel2:#18220f;--line:#26331d;
-  --text:#e7f0e0;--dim:#7d8c74;--gold:#e6c85a;--red:#dc5050;--amber:#e69a3f;
-}
+CSS_BASE = """
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);
   font-family:'Segoe UI',system-ui,Roboto,sans-serif;line-height:1.5;font-size:14px}
@@ -5584,11 +7774,13 @@ body{margin:0;background:var(--bg);color:var(--text);
 a{color:var(--grass-l);text-decoration:none}
 a:hover{text-decoration:underline}
 header.cover{border:1px solid var(--line);border-radius:18px;
-  background:radial-gradient(1200px 300px at 10% -20%,#20301a,transparent),
-             linear-gradient(150deg,#111a0e,#1b2612);padding:30px 32px;margin-bottom:26px}
+  background:radial-gradient(1200px 300px at 10% -20%,var(--cover1),transparent),
+             linear-gradient(150deg,var(--head),var(--cover2));padding:30px 32px;margin-bottom:26px}
 .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
 h1{font-family:ui-monospace,Consolas,monospace;letter-spacing:6px;color:var(--grass-l);
-  margin:0;font-size:40px;text-shadow:0 2px 12px rgba(106,190,48,.25)}
+  margin:0;font-size:40px;text-shadow:0 2px 12px var(--glow)}
+.badge{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:2px;
+  padding:3px 10px;border-radius:20px;background:var(--grass);color:var(--on-primary)}
 .brand .ver{color:var(--dim);font-family:ui-monospace,monospace}
 .cover .tag{color:var(--dim);margin-top:4px;letter-spacing:.5px}
 .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
@@ -5608,7 +7800,7 @@ h2 .cnt{color:var(--dim);font-size:14px;font-weight:400}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 16px}
 .card .k{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px}
 .card .v{font-size:26px;font-weight:700;margin-top:3px;color:var(--grass-l)}
-.card.crit .v{color:#ff6b6b}.card.high .v{color:var(--amber)}.card.med .v{color:var(--gold)}
+.card.crit .v{color:var(--crit)}.card.high .v{color:var(--amber)}.card.med .v{color:var(--gold)}
 .sevbar{border-radius:6px;overflow:hidden;margin-top:6px}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
 @media(max-width:760px){.charts{grid-template-columns:1fr}}
@@ -5626,27 +7818,21 @@ h2 .cnt{color:var(--dim);font-size:14px;font-weight:400}
 .chart-empty{color:var(--dim);font-style:italic;padding:12px}
 .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;font-size:13px}
-th{background:#111a0e;color:var(--grass);text-align:left;padding:11px 12px;
+th{background:var(--head);color:var(--grass);text-align:left;padding:11px 12px;
   border-bottom:2px solid var(--grass-d);white-space:nowrap;position:sticky;top:0}
 td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-tr:hover td{background:#111a0e}
+tr:hover td{background:var(--hover)}
 .mono,.ip,.ports{font-family:ui-monospace,Consolas,monospace}
 .ip{color:var(--grass-l);font-weight:600;white-space:nowrap}
 .ports{color:var(--grass)}.dim{color:var(--dim)}
 .tag{font-size:10.5px;padding:1px 7px;border-radius:20px;margin-left:6px;white-space:nowrap}
 .tag.you{background:var(--grass-d);color:#fff}.tag.router{background:#8a6d2a;color:#fff}
 .sev{font-weight:700;padding:2px 9px;border-radius:20px;font-size:10.5px;letter-spacing:.5px;white-space:nowrap}
-.sev.critical{background:#3a1010;color:#ff8080}.sev.high{background:#3a2410;color:#ffb27a}
-.sev.medium{background:#3a3510;color:#ffe07a}.sev.low{background:#22301b;color:#a9c98f}
-.sev.info{background:#1c2618;color:#9fb495}
 .risk-pill{font-weight:700;padding:1px 8px;border-radius:20px;font-size:11px}
-.risk-critical{background:#3a1010;color:#ff8080}.risk-high{background:#3a2410;color:#ffb27a}
-.risk-medium{background:#3a3510;color:#ffe07a}.risk-low{background:#22301b;color:#a9c98f}
-.risk-info{background:#1c2618;color:#9fb495}
 .topo{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .topo .grp{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .topo .grp h4{margin:0 0 8px;color:var(--grass-l);font-size:13px}
-.topo .node{font-size:12.5px;padding:2px 0;border-bottom:1px dashed #21301a}
+.topo .node{font-size:12.5px;padding:2px 0;border-bottom:1px dashed var(--line2)}
 .topo .node:last-child{border-bottom:none}
 .dev{background:var(--panel);border:1px solid var(--line);border-radius:14px;
   padding:18px 20px;margin-bottom:14px;scroll-margin-top:12px}
@@ -5656,26 +7842,87 @@ tr:hover td{background:#111a0e}
 .dev h3 .ip{font-size:18px}.dev .devtype{color:var(--leaf);font-size:13px}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:2px 12px;margin-top:12px;font-size:13px}
 .kv .k{color:var(--dim)}.kv .v{color:var(--text);word-break:break-word}
-.pill{display:inline-block;background:#111a0e;border:1px solid var(--line);border-radius:6px;
+.pill{display:inline-block;background:var(--head);border:1px solid var(--line);border-radius:6px;
   padding:2px 8px;margin:2px 4px 2px 0;font-family:ui-monospace,monospace;font-size:12px;color:var(--grass)}
 .subtable{width:100%;margin-top:8px;font-size:12.5px}
-.subtable th{position:static;background:#0f170c;font-size:11px}
+.subtable th{position:static;background:var(--head2);font-size:11px}
 .chips{margin-top:6px}
-.chip{display:inline-block;background:#17220f;border:1px solid var(--line);color:var(--grass-l);
+.chip{display:inline-block;background:var(--chip);border:1px solid var(--line);color:var(--grass-l);
   border-radius:20px;padding:1px 9px;margin:2px 4px 2px 0;font-size:11.5px}
 .find{margin:6px 0;padding-left:2px}
 footer{margin-top:44px;text-align:center;color:var(--dim);font-style:italic;
   border-top:1px solid var(--line);padding-top:24px}
 footer b{color:var(--grass-l);font-style:normal;font-size:18px;letter-spacing:1px}
 .note{color:var(--dim);font-size:12px;margin-top:8px;font-style:normal}
+.eng{display:grid;grid-template-columns:180px 1fr;gap:4px 16px;font-size:13.5px}
+.eng .k{color:var(--dim)}.eng .v{font-weight:600}
+.attest{margin-top:12px;padding:10px 14px;border-left:3px solid var(--grass);
+  background:var(--panel2);font-size:12.5px;color:var(--text)}
 @media print{
   body{background:#fff;color:#111}.page{max-width:100%}
   .panel,.card,.dev,.wrap,.topo .grp,header.cover{background:#fff;border-color:#ccc}
-  h1,.ip,.card .v,.legend b,footer b{color:#2e6b12}
-  th{background:#eee;color:#2e6b12}tr:hover td{background:transparent}
+  h1,.ip,.card .v,.legend b,footer b{color:var(--grass-d)}
+  th{background:#eee;color:var(--grass-d)}tr:hover td{background:transparent}
   .dev{break-inside:avoid}
 }
 """
+
+
+_SEV_DARK = """
+.sev.critical,.risk-critical{background:#3a1010;color:#ff8080}
+.sev.high,.risk-high{background:#3a2410;color:#ffb27a}
+.sev.medium,.risk-medium{background:#3a3510;color:#ffe07a}
+.sev.low,.risk-low{background:#22301b;color:#a9c98f}
+.sev.info,.risk-info{background:#1c2618;color:#9fb495}
+"""
+
+_SEV_LIGHT = """
+.sev.critical,.risk-critical{background:#fde4e4;color:#a01818}
+.sev.high,.risk-high{background:#fdeadb;color:#9a4a0c}
+.sev.medium,.risk-medium{background:#fbf2cf;color:#7d6200}
+.sev.low,.risk-low{background:#e3f1e1;color:#2d662a}
+.sev.info,.risk-info{background:#eceff3;color:#4f5b69}
+"""
+
+
+def _root_vars(p):
+    """CSS custom properties for a palette (dark shades derived from primary)."""
+    mix = edition.hex_mix
+    prim = p["primary"]
+    r, g, b = (int(prim[i:i + 2], 16) for i in (1, 3, 5))
+    if p.get("mode") == "light":
+        v = dict(bg="#f4f6f9", panel="#ffffff", panel2="#f8fafc", line="#dde3ea",
+                 line2="#e6ebf1", head=mix(prim, "#ffffff", .92),
+                 head2=mix(prim, "#ffffff", .95), hover="#f1f5fa",
+                 chip=mix(prim, "#ffffff", .9), cover1=mix(prim, "#ffffff", .85),
+                 cover2="#ffffff", crit="#c62828", amber="#b45309",
+                 onp="#ffffff", glow="rgba(%d,%d,%d,.12)" % (r, g, b))
+    else:
+        n = "#0b0d10"
+        v = dict(bg=mix(prim, n, .94), panel=mix(prim, n, .88),
+                 panel2=mix(prim, n, .85), line=mix(prim, n, .76),
+                 line2=mix(prim, n, .80), head=mix(prim, n, .90),
+                 head2=mix(prim, n, .92), hover=mix(prim, n, .91),
+                 chip=mix(prim, n, .86), cover1=mix(prim, n, .80),
+                 cover2=mix(prim, n, .87), crit="#ff6b6b", amber="#e69a3f",
+                 onp="#0b0d10", glow="rgba(%d,%d,%d,.25)" % (r, g, b))
+    return (":root{--grass:%s;--grass-l:%s;--grass-d:%s;--leaf:%s;"
+            "--bg:%s;--panel:%s;--panel2:%s;--line:%s;--line2:%s;--head:%s;"
+            "--head2:%s;--hover:%s;--chip:%s;--cover1:%s;--cover2:%s;"
+            "--text:%s;--dim:%s;--gold:%s;--red:%s;--amber:%s;--crit:%s;"
+            "--on-primary:%s;--glow:%s}\n" % (
+                prim, p["light"], p["dark"], p["accent"], v["bg"], v["panel"],
+                v["panel2"], v["line"], v["line2"], v["head"], v["head2"],
+                v["hover"], v["chip"], v["cover1"], v["cover2"], p["text"],
+                p["dim"], p["gold"], p["red"], v["amber"], v["crit"], v["onp"],
+                v["glow"]))
+
+
+def css(palette=None):
+    """The complete stylesheet for the active (or given) document palette."""
+    p = palette or edition.html_palette()
+    sev = _SEV_LIGHT if p.get("mode") == "light" else _SEV_DARK
+    return _root_vars(p) + CSS_BASE + sev
 
 
 def _cover(meta):
@@ -5683,7 +7930,8 @@ def _cover(meta):
         ("Generated", esc_html(meta.generated)),
         ("Scan", f"{esc_html(meta.scan_type)} ({esc_html(meta.profile)})"),
         ("Network", esc_html(meta.network)),
-        ("Operator", f"{esc_html(meta.local_ip)} ({esc_html(meta.hostname)})"),
+        ("Station" if meta.client else "Operator",
+         f"{esc_html(meta.local_ip)} ({esc_html(meta.hostname)})"),
         ("Gateway", esc_html(meta.gateway)),
         ("DNS", esc_html(", ".join(meta.dns) if meta.dns else "-")),
         ("Methods", esc_html(", ".join(meta.methods))),
@@ -5693,12 +7941,31 @@ def _cover(meta):
         rows.append(("Public IP", f"{esc_html(meta.public_ip)} · {esc_html(meta.isp)}"))
         if meta.geo:
             rows.append(("Location", esc_html(meta.geo)))
+    rows = [(k, esc_html(v)) for k, v in engagement_rows(meta)] + rows
     meta_html = "".join(f"<span><b>{k}</b>{v}</span>" for k, v in rows)
+    s = edition.spec()
+    badge = f'<span class="badge">{esc_html(s["badge"])}</span>' if s["badge"] else ""
     return f"""<header class="cover">
-  <div class="brand"><h1>SCANFY</h1><span class="ver">v{__version__}</span></div>
-  <div class="tag">network reconnaissance dossier</div>
+  <div class="brand"><h1>{esc_html(s["product"])}</h1>{badge}<span class="ver">v{__version__}</span></div>
+  <div class="tag">{esc_html(doc_title())}</div>
   <div class="meta">{meta_html}</div>
 </header>"""
+
+
+def _engagement_section(meta):
+    """Pro edition: the engagement / authorization block of the assessment."""
+    if not meta.client:
+        return ""
+    rows = "".join(f'<div class="k">{esc_html(k)}</div><div class="v">{esc_html(v)}</div>'
+                   for k, v in engagement_rows(meta))
+    rows += (f'<div class="k">Assessment window</div>'
+             f'<div class="v">{esc_html(meta.generated)} · {esc_html(meta.duration)}s</div>')
+    return (f'<h2>Engagement &amp; authorization</h2><div class="panel">'
+            f'<div class="eng">{rows}</div>'
+            f'<div class="attest">This assessment was performed by '
+            f'<b>{esc_html(meta.operator)}</b> for <b>{esc_html(meta.client)}</b> '
+            f'under authorization <b>{esc_html(meta.auth_ref)}</b>, limited to the '
+            f'scope above. Hosts outside that scope were not scanned.</div></div>')
 
 
 def _summary(result):
@@ -5804,6 +8071,10 @@ def _scorecard_section(result):
             f'{rem_table}</div></div>')
 
 
+def _you():
+    return "scanner" if edition.feature("engagement") else "you"
+
+
 def _topology_section(result):
     graph = topo.build_graph(result)
     grps = []
@@ -5819,7 +8090,7 @@ def _topology_section(result):
               f'<div class="node"><span class="ip">{esc_html(graph["gateway"])}</span> '
               f'<span class="tag router">router</span></div>'
               f'<div class="node"><span class="ip">{esc_html(graph["operator"])}</span> '
-              f'<span class="tag you">you</span></div></div>')
+              f'<span class="tag you">{_you()}</span></div></div>')
     return (f'<h2>Topology overview</h2>'
             f'<div class="topo">{center}{"".join(grps)}</div>')
 
@@ -5829,7 +8100,7 @@ def _inventory_section(result):
     for d in result.devices:
         tag = ""
         if d.is_self:
-            tag = ' <span class="tag you">you</span>'
+            tag = f' <span class="tag you">{_you()}</span>'
         elif d.is_gateway:
             tag = ' <span class="tag router">router</span>'
         ports = ", ".join(f"{p.port}/{esc_html(p.service or p.protocol)}"
@@ -5958,6 +8229,7 @@ def render(result):
     m = result.meta
     body = "".join([
         _cover(m),
+        _engagement_section(m),
         _summary(result),
         _scorecard_section(result),
         _findings_section(result),
@@ -5965,14 +8237,23 @@ def render(result):
         _inventory_section(result),
         _devices_section(result),
     ])
-    footer = (f'<footer><b>{MOTTO_EN}</b><br>{MOTTO_PT} \U0001f1e7\U0001f1f7'
+    s = edition.spec()
+    lines = edition.footer_lines()
+    head = f"<b>{esc_html(lines[0])}</b>"
+    if len(lines) > 1:
+        head += "<br>" + esc_html(lines[1])
+    if s["flag"]:
+        head += " " + s["flag"]
+    note_use = (" · " + esc_html(s["usage_note"])) if s["motto_en"] else ""
+    footer = (f'<footer>{head}'
               f'<div class="note">Engine: {esc_html(m.engine)} · Generated by '
-              f'SCANFY v{__version__} · For authorized use on your own network only.</div>'
+              f'{esc_html(edition.full_name())} v{__version__}{note_use}</div>'
               f'</footer>')
+    who = f" — {esc_html(m.client)}" if m.client else ""
     return f"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SCANFY dossier — {esc_html(m.network)} — {esc_html(m.generated)}</title>
-<style>{CSS}</style></head><body><div class="page">{body}{footer}</div></body></html>"""
+<title>{esc_html(s["product"])} {esc_html(doc_title())}{who} — {esc_html(m.network)} — {esc_html(m.generated)}</title>
+<style>{css()}</style></head><body><div class="page">{body}{footer}</div></body></html>"""
 
 
 def export(result, config):
@@ -5983,13 +8264,1115 @@ def export(result, config):
 '''
 
 # ---------------------------------------------------------------------------
+# module: scanfyx.report.i18n
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.report.i18n'] = r'''"""
+Report languages for the PDF dossiers.
+
+The whole tool (menus, prompts, HTML/Markdown/TXT) is in English; the two PDF
+dossiers (styled ``pdf`` and formal ``dossier``) can be produced in any of the
+languages below. The user picks one when exporting, in Settings, or with
+``--lang`` on the command line; the last choice is remembered in
+``~/.scanfy/prefs.json`` and becomes the default next time.
+
+Only the report's own wording is translated. Text produced by the scan engine
+(finding titles, recommendations, device types, banners) stays in English.
+
+All languages use Latin script so the built-in PDF fonts render them; scripts
+such as Chinese, Japanese or Cyrillic would need embedded TrueType fonts.
+"""
+
+import json
+import os
+from datetime import datetime
+
+from .. import constants
+
+DEFAULT = "en"
+PREFS_PATH = os.path.join(constants.CONFIG_DIR, "prefs.json")
+
+LANGS = {
+    "en": "English",
+    "pt": "Português",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch",
+    "it": "Italiano",
+}
+
+_ALIASES = {
+    "english": "en", "ingles": "en", "inglês": "en", "en-us": "en", "en-gb": "en",
+    "portugues": "pt", "português": "pt", "portuguese": "pt", "pt-br": "pt", "pt-pt": "pt",
+    "br": "pt", "espanol": "es", "español": "es", "spanish": "es", "espanhol": "es",
+    "francais": "fr", "français": "fr", "french": "fr", "frances": "fr", "francês": "fr",
+    "deutsch": "de", "german": "de", "alemao": "de", "alemão": "de",
+    "italiano": "it", "italian": "it",
+}
+
+
+def normalize(code):
+    """'pt_BR' / 'Português' / 'PT' -> 'pt'; None when unsupported."""
+    if not code:
+        return None
+    c = str(code).strip().lower().replace("_", "-")
+    if c in LANGS:
+        return c
+    if c in _ALIASES:
+        return _ALIASES[c]
+    if c[:2] in LANGS and (len(c) == 2 or c[2] == "-"):
+        return c[:2]
+    return None
+
+
+def saved_default():
+    try:
+        with open(PREFS_PATH, encoding="utf-8") as f:
+            return normalize(json.load(f).get("report_lang")) or DEFAULT
+    except Exception:
+        return DEFAULT
+
+
+def save_default(code):
+    code = normalize(code)
+    if not code:
+        return False
+    data = {}
+    try:
+        with open(PREFS_PATH, encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except Exception:
+        pass
+    data["report_lang"] = code
+    try:
+        tmp = PREFS_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp, PREFS_PATH)
+        return True
+    except Exception:
+        return False
+
+
+def resolve(config=None):
+    """The language to use: config.report_lang, else the saved default."""
+    return normalize(getattr(config, "report_lang", "") or "") or saved_default()
+
+
+def t(lang, key, **fmt):
+    """Translated string (falls back to English, then to the key itself)."""
+    table = STRINGS.get(normalize(lang) or DEFAULT, STRINGS[DEFAULT])
+    text = table.get(key, STRINGS[DEFAULT].get(key, key))
+    return text.format(**fmt) if fmt else text
+
+
+def fmt_ts(lang, ts):
+    """'2026-10-14 10:30:00' -> the language's date/time format."""
+    try:
+        dt = datetime.strptime(str(ts), "%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return str(ts or "-")
+    return dt.strftime(t(lang, "date_fmt"))
+
+
+def now(lang):
+    return datetime.now().strftime(t(lang, "date_fmt"))
+
+
+def doc_title(lang, edition_key):
+    return t(lang, "doc." + edition_key)
+
+
+def engagement_rows(lang, meta):
+    """Localized version of report.common.engagement_rows."""
+    rows = []
+    if getattr(meta, "client", ""):
+        rows += [(t(lang, "client"), meta.client), (t(lang, "operator"), meta.operator),
+                 (t(lang, "authorization"), meta.auth_ref),
+                 (t(lang, "scope"), ", ".join(meta.scope) or "-")]
+    elif getattr(meta, "owner", ""):
+        rows.append((t(lang, "prepared_for"), meta.owner))
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# String tables. Every language must define exactly the keys of "en" (a unit
+# test enforces it), with the same {placeholders}.
+# ---------------------------------------------------------------------------
+STRINGS = {
+    # ===================================================================== EN
+    "en": {
+        "date_fmt": "%Y-%m-%d %H:%M:%S",
+        "doc.standard": "network reconnaissance dossier",
+        "doc.owner": "private network dossier",
+        "doc.pro": "network security dossier",
+        "generated": "Generated", "scan": "Scan", "network": "Network",
+        "operator": "Operator", "station": "Station", "gateway": "Gateway",
+        "duration": "Duration", "methods": "Methods", "engine": "Engine",
+        "client": "Client", "authorization": "Authorization",
+        "scope": "Authorized scope", "prepared_for": "Prepared for",
+        "exec_summary": "Executive summary", "devices": "Devices",
+        "risk_grade": "Risk grade", "open_ports": "Open ports",
+        "findings_n": "Security findings ({n})", "col_sev": "Sev", "host": "Host",
+        "service": "Service", "finding": "Finding", "inventory": "Inventory",
+        "vendor": "Vendor", "type": "Type", "os": "OS", "risk": "Risk",
+        "ports": "Ports",
+        "usage_pro": "Use only on networks you own or are authorized to test.",
+        "sev.critical": "CRITICAL", "sev.high": "HIGH", "sev.medium": "MEDIUM",
+        "sev.low": "LOW", "sev.info": "INFO",
+        "risk.critical": "Critical", "risk.high": "High", "risk.medium": "Medium",
+        "risk.low": "Low", "risk.info": "Informational",
+        # ---- formal dossier ----
+        "f.title_pro": "NETWORK SECURITY ASSESSMENT REPORT",
+        "f.title": "NETWORK INVESTIGATION REPORT",
+        "f.subtitle_client": "Client: {client}",
+        "f.subtitle": "Technical survey of assets and security posture",
+        "f.report_id": "Report identifier", "f.collected_at": "Collection date and time",
+        "f.issued_at": "Issue date and time", "f.network_analyzed": "Network analyzed",
+        "f.operator_station": "Operator workstation",
+        "f.devices_identified": "Devices identified", "f.tool_used": "Tool used",
+        "f.client_org": "Client / organization", "f.tech_lead": "Technical lead",
+        "f.auth_ref": "Authorization reference", "f.auth_scope": "Authorized scope",
+        "f.network_owner": "Network owner",
+        "f.conf_notice": ("<b>CONFIDENTIAL DOCUMENT.</b> Restricted, authorized use. This "
+                          "report may contain personal data (IP and MAC addresses, device "
+                          "names) protected by Brazilian Law No. 13,709/2018 (LGPD). See "
+                          "the confidentiality section at the end."),
+        "f.s1": "1. Investigation details", "f.collected": "Collected at",
+        "f.scan_profile": "Scan profile", "f.dns": "DNS servers",
+        "f.s2": "2. Executive summary",
+        "f.summary": ("The scan identified <b>{n}</b> device(s) on network "
+                      "<b>{network}</b>. The overall security posture was rated "
+                      "<b>{grade}</b> (score {score}/100). There were {c} critical "
+                      "finding(s), {h} high-risk, {m} medium and {l} low."),
+        "f.severity": "Severity", "f.quantity": "Count",
+        "f.top_risk": "Highest-risk devices", "f.col_index": "Score",
+        "f.col_findings": "Findings",
+        "f.s3": "3. Device inventory", "f.col_name": "Name",
+        "f.s4": "4. Security findings",
+        "f.none": "No risky exposed service was identified.",
+        "f.col_finding_rec": "Finding / Recommendation",
+        "f.remediation": "Prioritised remediation plan", "f.col_priority": "Priority",
+        "f.col_action": "Recommended action", "f.col_hosts": "Hosts",
+        "f.s5": "5. Per-device detail", "f.tag_operator": "(operator)",
+        "f.tag_gateway": "(gateway)", "f.kv_mac": "MAC / Vendor",
+        "f.kv_host": "Host name", "f.kv_netbios": "NetBIOS / Workgroup",
+        "f.kv_os": "Operating system", "f.kv_latency": "Latency",
+        "f.kv_methods": "Discovery methods", "f.kv_risk": "Risk score",
+        "f.col_port": "Port", "f.col_product": "Product / Version",
+        "f.col_banner": "Banner",
+        "f.conf_title": "Confidentiality and Data Protection",
+        "f.p1": ("<b>1. Classification.</b> This document is <b>CONFIDENTIAL</b> and "
+                 "intended exclusively for its authorized recipient(s). Reproducing, "
+                 "distributing or disclosing it, in whole or in part, without the express "
+                 "authorization of the responsible party is prohibited."),
+        "f.p2": ("<b>2. Nature of the data.</b> This report contains technical "
+                 "information and, potentially, <b>personal data</b> — such as IP and MAC "
+                 "addresses and device names — which, under art. 5, I, of Brazilian Law "
+                 "No. 13,709/2018 (General Personal Data Protection Law — LGPD), may "
+                 "constitute personal data when associated with an identified or "
+                 "identifiable natural person."),
+        "f.p3": ("<b>3. Purpose and legal basis.</b> The data were collected for the "
+                 "specific purpose of auditing and assessing the security of the "
+                 "network, {basis}observing the principles of purpose, adequacy, "
+                 "necessity (minimisation) and transparency set out in art. 6 of the "
+                 "LGPD."),
+        "f.basis_pro": ("under the formal authorization of the client <b>{client}</b> "
+                        "(reference <b>{auth_ref}</b>), restricted to the scope "
+                        "<b>{scope}</b>, "),
+        "f.basis_owner": "with the authorization of the owner of the infrastructure, ",
+        "f.p4": ("<b>4. Processing restrictions and retention.</b> Access must be "
+                 "limited to those who strictly need it. The document should be kept "
+                 "only for as long as needed to fulfil its purpose and then "
+                 "<b>securely disposed of</b> (permanently deleted), in accordance with "
+                 "arts. 15 and 16 of the LGPD."),
+        "f.p5": ("<b>5. Authorized use and responsibility.</b> This investigation and "
+                 "the use of the {tool} tool are intended exclusively for networks owned "
+                 "by the responsible party or for which that party holds express "
+                 "authorization to test. Scanning third-party networks without consent "
+                 "may constitute a civil and criminal offence. The operator assumes the "
+                 "obligations of a data processing agent (controller/processor) that "
+                 "apply to them."),
+        "f.p6": ("<b>6. Data subjects' rights.</b> Data subjects are guaranteed the "
+                 "exercise of the rights set out in art. 18 of the LGPD, including "
+                 "confirmation of processing, access, correction, anonymisation, "
+                 "blocking and deletion of the personal data processed."),
+        "f.p7": ("<b>7. Disclaimer.</b> This report reflects the state of the network at "
+                 "the time of collection ({generated}) and is provided “as is”, without "
+                 "any guarantee of completeness. Findings marked as possible "
+                 "vulnerabilities (CVE) are indicators for manual verification, not "
+                 "definitive confirmation."),
+        "f.id_label": "Identifier", "f.collect_label": "Collected",
+        "f.issue_label": "Issued",
+        "f.sign_resp": "Responsible for the investigation:",
+        "f.sign_sig": "Signature:", "f.sign_date": "Date:",
+        "f.date_blank": "________-____-____",
+        "f.foot_client": "CONFIDENTIAL · {client}",
+        "f.foot": "CONFIDENTIAL · Restricted, authorized use",
+        "f.page": "Page {n}", "f.doc_title": "Network report - {x}",
+    },
+
+    # ===================================================================== PT
+    "pt": {
+        "date_fmt": "%d/%m/%Y %H:%M:%S",
+        "doc.standard": "dossiê de reconhecimento de rede",
+        "doc.owner": "dossiê privado da rede",
+        "doc.pro": "dossiê de segurança de rede",
+        "generated": "Gerado em", "scan": "Varredura", "network": "Rede",
+        "operator": "Operador", "station": "Estação", "gateway": "Gateway",
+        "duration": "Duração", "methods": "Métodos", "engine": "Motor",
+        "client": "Cliente", "authorization": "Autorização",
+        "scope": "Escopo autorizado", "prepared_for": "Preparado para",
+        "exec_summary": "Sumário executivo", "devices": "Dispositivos",
+        "risk_grade": "Nota de risco", "open_ports": "Portas abertas",
+        "findings_n": "Achados de segurança ({n})", "col_sev": "Sev.", "host": "Host",
+        "service": "Serviço", "finding": "Achado", "inventory": "Inventário",
+        "vendor": "Fabricante", "type": "Tipo", "os": "SO", "risk": "Risco",
+        "ports": "Portas",
+        "usage_pro": ("Use apenas em redes de sua propriedade ou que você esteja "
+                      "autorizado a testar."),
+        "sev.critical": "CRÍTICO", "sev.high": "ALTO", "sev.medium": "MÉDIO",
+        "sev.low": "BAIXO", "sev.info": "INFORMATIVO",
+        "risk.critical": "Crítico", "risk.high": "Alto", "risk.medium": "Médio",
+        "risk.low": "Baixo", "risk.info": "Informativo",
+        "f.title_pro": "RELATÓRIO DE AVALIAÇÃO DE SEGURANÇA DE REDE",
+        "f.title": "RELATÓRIO DE INVESTIGAÇÃO DE REDE",
+        "f.subtitle_client": "Cliente: {client}",
+        "f.subtitle": "Levantamento técnico de ativos e postura de segurança",
+        "f.report_id": "Identificador do relatório",
+        "f.collected_at": "Data e hora da coleta",
+        "f.issued_at": "Data e hora de emissão", "f.network_analyzed": "Rede analisada",
+        "f.operator_station": "Estação do operador",
+        "f.devices_identified": "Dispositivos identificados",
+        "f.tool_used": "Ferramenta utilizada",
+        "f.client_org": "Cliente / organização", "f.tech_lead": "Responsável técnico",
+        "f.auth_ref": "Referência da autorização", "f.auth_scope": "Escopo autorizado",
+        "f.network_owner": "Titular da rede",
+        "f.conf_notice": ("<b>DOCUMENTO CONFIDENCIAL.</b> Uso restrito e autorizado. Este "
+                          "relatório pode conter dados pessoais (endereços IP e MAC, nomes "
+                          "de dispositivos) protegidos pela Lei nº 13.709/2018 (LGPD). "
+                          "Consulte a seção de confidencialidade ao final."),
+        "f.s1": "1. Informações da investigação", "f.collected": "Data/hora da coleta",
+        "f.scan_profile": "Perfil de varredura", "f.dns": "Servidores DNS",
+        "f.s2": "2. Sumário executivo",
+        "f.summary": ("A varredura identificou <b>{n}</b> dispositivo(s) na rede "
+                      "<b>{network}</b>. A postura geral de segurança foi classificada com "
+                      "a nota <b>{grade}</b> (índice {score}/100). Registraram-se {c} "
+                      "achado(s) crítico(s), {h} de risco alto, {m} médio(s) e {l} "
+                      "baixo(s)."),
+        "f.severity": "Severidade", "f.quantity": "Quantidade",
+        "f.top_risk": "Dispositivos de maior risco", "f.col_index": "Índice",
+        "f.col_findings": "Achados",
+        "f.s3": "3. Inventário de dispositivos", "f.col_name": "Nome",
+        "f.s4": "4. Achados de segurança",
+        "f.none": "Nenhum serviço exposto de risco foi identificado.",
+        "f.col_finding_rec": "Achado / Recomendação",
+        "f.remediation": "Plano de remediação priorizado", "f.col_priority": "Prioridade",
+        "f.col_action": "Ação recomendada", "f.col_hosts": "Hosts",
+        "f.s5": "5. Detalhamento por dispositivo", "f.tag_operator": "(operador)",
+        "f.tag_gateway": "(gateway)", "f.kv_mac": "MAC / Fabricante",
+        "f.kv_host": "Nome do host", "f.kv_netbios": "NetBIOS / Grupo",
+        "f.kv_os": "Sistema operacional", "f.kv_latency": "Latência",
+        "f.kv_methods": "Métodos de descoberta", "f.kv_risk": "Índice de risco",
+        "f.col_port": "Porta", "f.col_product": "Produto / Versão",
+        "f.col_banner": "Banner",
+        "f.conf_title": "Confidencialidade e Proteção de Dados",
+        "f.p1": ("<b>1. Classificação.</b> Este documento é <b>CONFIDENCIAL</b> e "
+                 "destina-se exclusivamente ao(s) destinatário(s) autorizado(s). Sua "
+                 "reprodução, distribuição ou divulgação, total ou parcial, sem "
+                 "autorização expressa do responsável, é vedada."),
+        "f.p2": ("<b>2. Natureza dos dados.</b> O relatório contém informações técnicas "
+                 "e, potencialmente, <b>dados pessoais</b> — tais como endereços IP e MAC "
+                 "e nomes de dispositivos — que, nos termos do art. 5º, I, da Lei nº "
+                 "13.709/2018 (Lei Geral de Proteção de Dados Pessoais — LGPD), podem "
+                 "constituir dado pessoal quando associados a pessoa natural identificada "
+                 "ou identificável."),
+        "f.p3": ("<b>3. Finalidade e base legal.</b> Os dados foram coletados com a "
+                 "finalidade específica de auditoria e avaliação da segurança da rede, "
+                 "{basis}observando os princípios da finalidade, adequação, necessidade "
+                 "(minimização) e transparência previstos no art. 6º da LGPD."),
+        "f.basis_pro": ("mediante autorização formal do contratante <b>{client}</b> "
+                        "(referência <b>{auth_ref}</b>), restrita ao escopo "
+                        "<b>{scope}</b>, "),
+        "f.basis_owner": "mediante autorização do titular da infraestrutura, ",
+        "f.p4": ("<b>4. Restrição de tratamento e retenção.</b> O acesso deve ser "
+                 "limitado às pessoas estritamente necessárias. Recomenda-se reter o "
+                 "documento apenas pelo período necessário ao cumprimento de sua "
+                 "finalidade e proceder ao seu <b>descarte seguro</b> (eliminação "
+                 "definitiva) ao término, conforme os arts. 15 e 16 da LGPD."),
+        "f.p5": ("<b>5. Uso autorizado e responsabilidade.</b> Esta investigação e o uso "
+                 "da ferramenta {tool} destinam-se exclusivamente a redes de propriedade "
+                 "do responsável ou sobre as quais este possua autorização expressa para "
+                 "testes. A varredura de redes de terceiros sem consentimento pode "
+                 "configurar ilícito civil e penal. O executor assume as obrigações de "
+                 "agente de tratamento (controlador/operador) que lhe couberem."),
+        "f.p6": ("<b>6. Direitos dos titulares.</b> É assegurado aos titulares dos dados "
+                 "o exercício dos direitos previstos no art. 18 da LGPD, incluindo "
+                 "confirmação de tratamento, acesso, correção, anonimização, bloqueio e "
+                 "eliminação dos dados pessoais tratados."),
+        "f.p7": ("<b>7. Isenção de garantias.</b> O presente relatório reflete o estado "
+                 "da rede no momento da coleta ({generated}) e é fornecido “no estado em "
+                 "que se encontra”, sem garantia de exaustividade. Achados indicados como "
+                 "possíveis vulnerabilidades (CVE) constituem indicadores para "
+                 "verificação manual, não confirmação definitiva."),
+        "f.id_label": "Identificador", "f.collect_label": "Coleta",
+        "f.issue_label": "Emissão",
+        "f.sign_resp": "Responsável pela investigação:",
+        "f.sign_sig": "Assinatura:", "f.sign_date": "Data:",
+        "f.date_blank": "____/____/________",
+        "f.foot_client": "CONFIDENCIAL · {client}",
+        "f.foot": "CONFIDENCIAL · Uso restrito e autorizado",
+        "f.page": "Página {n}", "f.doc_title": "Relatório de rede - {x}",
+    },
+
+    # ===================================================================== ES
+    "es": {
+        "date_fmt": "%d/%m/%Y %H:%M:%S",
+        "doc.standard": "dossier de reconocimiento de red",
+        "doc.owner": "dossier privado de la red",
+        "doc.pro": "dossier de seguridad de red",
+        "generated": "Generado", "scan": "Escaneo", "network": "Red",
+        "operator": "Operador", "station": "Estación", "gateway": "Puerta de enlace",
+        "duration": "Duración", "methods": "Métodos", "engine": "Motor",
+        "client": "Cliente", "authorization": "Autorización",
+        "scope": "Alcance autorizado", "prepared_for": "Preparado para",
+        "exec_summary": "Resumen ejecutivo", "devices": "Dispositivos",
+        "risk_grade": "Nota de riesgo", "open_ports": "Puertos abiertos",
+        "findings_n": "Hallazgos de seguridad ({n})", "col_sev": "Sev.", "host": "Host",
+        "service": "Servicio", "finding": "Hallazgo", "inventory": "Inventario",
+        "vendor": "Fabricante", "type": "Tipo", "os": "SO", "risk": "Riesgo",
+        "ports": "Puertos",
+        "usage_pro": ("Úselo solo en redes de su propiedad o que esté autorizado "
+                      "a evaluar."),
+        "sev.critical": "CRÍTICO", "sev.high": "ALTO", "sev.medium": "MEDIO",
+        "sev.low": "BAJO", "sev.info": "INFORMATIVO",
+        "risk.critical": "Crítico", "risk.high": "Alto", "risk.medium": "Medio",
+        "risk.low": "Bajo", "risk.info": "Informativo",
+        "f.title_pro": "INFORME DE EVALUACIÓN DE SEGURIDAD DE RED",
+        "f.title": "INFORME DE INVESTIGACIÓN DE RED",
+        "f.subtitle_client": "Cliente: {client}",
+        "f.subtitle": "Relevamiento técnico de activos y postura de seguridad",
+        "f.report_id": "Identificador del informe",
+        "f.collected_at": "Fecha y hora de la recolección",
+        "f.issued_at": "Fecha y hora de emisión", "f.network_analyzed": "Red analizada",
+        "f.operator_station": "Estación del operador",
+        "f.devices_identified": "Dispositivos identificados",
+        "f.tool_used": "Herramienta utilizada",
+        "f.client_org": "Cliente / organización", "f.tech_lead": "Responsable técnico",
+        "f.auth_ref": "Referencia de la autorización",
+        "f.auth_scope": "Alcance autorizado", "f.network_owner": "Titular de la red",
+        "f.conf_notice": ("<b>DOCUMENTO CONFIDENCIAL.</b> Uso restringido y autorizado. "
+                          "Este informe puede contener datos personales (direcciones IP y "
+                          "MAC, nombres de dispositivos) protegidos por la Ley n.º "
+                          "13.709/2018 de Brasil (LGPD). Consulte la sección de "
+                          "confidencialidad al final."),
+        "f.s1": "1. Información de la investigación",
+        "f.collected": "Fecha/hora de la recolección",
+        "f.scan_profile": "Perfil de escaneo", "f.dns": "Servidores DNS",
+        "f.s2": "2. Resumen ejecutivo",
+        "f.summary": ("El escaneo identificó <b>{n}</b> dispositivo(s) en la red "
+                      "<b>{network}</b>. La postura general de seguridad fue calificada "
+                      "con la nota <b>{grade}</b> (índice {score}/100). Se registraron "
+                      "{c} hallazgo(s) crítico(s), {h} de riesgo alto, {m} medio(s) y "
+                      "{l} bajo(s)."),
+        "f.severity": "Severidad", "f.quantity": "Cantidad",
+        "f.top_risk": "Dispositivos de mayor riesgo", "f.col_index": "Índice",
+        "f.col_findings": "Hallazgos",
+        "f.s3": "3. Inventario de dispositivos", "f.col_name": "Nombre",
+        "f.s4": "4. Hallazgos de seguridad",
+        "f.none": "No se identificó ningún servicio expuesto de riesgo.",
+        "f.col_finding_rec": "Hallazgo / Recomendación",
+        "f.remediation": "Plan de remediación priorizado", "f.col_priority": "Prioridad",
+        "f.col_action": "Acción recomendada", "f.col_hosts": "Hosts",
+        "f.s5": "5. Detalle por dispositivo", "f.tag_operator": "(operador)",
+        "f.tag_gateway": "(puerta de enlace)", "f.kv_mac": "MAC / Fabricante",
+        "f.kv_host": "Nombre de host", "f.kv_netbios": "NetBIOS / Grupo",
+        "f.kv_os": "Sistema operativo", "f.kv_latency": "Latencia",
+        "f.kv_methods": "Métodos de descubrimiento", "f.kv_risk": "Índice de riesgo",
+        "f.col_port": "Puerto", "f.col_product": "Producto / Versión",
+        "f.col_banner": "Banner",
+        "f.conf_title": "Confidencialidad y protección de datos",
+        "f.p1": ("<b>1. Clasificación.</b> Este documento es <b>CONFIDENCIAL</b> y está "
+                 "destinado exclusivamente a su(s) destinatario(s) autorizado(s). Queda "
+                 "prohibida su reproducción, distribución o divulgación, total o parcial, "
+                 "sin la autorización expresa del responsable."),
+        "f.p2": ("<b>2. Naturaleza de los datos.</b> El informe contiene información "
+                 "técnica y, potencialmente, <b>datos personales</b> — como direcciones IP "
+                 "y MAC y nombres de dispositivos — que, conforme al art. 5, I, de la Ley "
+                 "n.º 13.709/2018 de Brasil (Ley General de Protección de Datos "
+                 "Personales — LGPD), pueden constituir datos personales cuando se "
+                 "asocian a una persona física identificada o identificable."),
+        "f.p3": ("<b>3. Finalidad y base legal.</b> Los datos se recopilaron con la "
+                 "finalidad específica de auditar y evaluar la seguridad de la red, "
+                 "{basis}observando los principios de finalidad, adecuación, necesidad "
+                 "(minimización) y transparencia previstos en el art. 6 de la LGPD."),
+        "f.basis_pro": ("mediante autorización formal del contratante <b>{client}</b> "
+                        "(referencia <b>{auth_ref}</b>), restringida al alcance "
+                        "<b>{scope}</b>, "),
+        "f.basis_owner": "mediante autorización del titular de la infraestructura, ",
+        "f.p4": ("<b>4. Restricción del tratamiento y conservación.</b> El acceso debe "
+                 "limitarse a las personas estrictamente necesarias. Se recomienda "
+                 "conservar el documento solo durante el período necesario para cumplir "
+                 "su finalidad y proceder a su <b>eliminación segura</b> (borrado "
+                 "definitivo) al término, conforme a los arts. 15 y 16 de la LGPD."),
+        "f.p5": ("<b>5. Uso autorizado y responsabilidad.</b> Esta investigación y el "
+                 "uso de la herramienta {tool} están destinados exclusivamente a redes de "
+                 "propiedad del responsable o sobre las cuales este posea autorización "
+                 "expresa para realizar pruebas. Escanear redes de terceros sin "
+                 "consentimiento puede constituir un ilícito civil y penal. El ejecutor "
+                 "asume las obligaciones de agente de tratamiento (responsable/encargado) "
+                 "que le correspondan."),
+        "f.p6": ("<b>6. Derechos de los titulares.</b> Se garantiza a los titulares de "
+                 "los datos el ejercicio de los derechos previstos en el art. 18 de la "
+                 "LGPD, incluidos la confirmación del tratamiento, el acceso, la "
+                 "corrección, la anonimización, el bloqueo y la eliminación de los datos "
+                 "personales tratados."),
+        "f.p7": ("<b>7. Exención de garantías.</b> El presente informe refleja el estado "
+                 "de la red en el momento de la recolección ({generated}) y se "
+                 "proporciona “tal cual”, sin garantía de exhaustividad. Los hallazgos "
+                 "indicados como posibles vulnerabilidades (CVE) constituyen indicadores "
+                 "para verificación manual, no una confirmación definitiva."),
+        "f.id_label": "Identificador", "f.collect_label": "Recolección",
+        "f.issue_label": "Emisión",
+        "f.sign_resp": "Responsable de la investigación:",
+        "f.sign_sig": "Firma:", "f.sign_date": "Fecha:",
+        "f.date_blank": "____/____/________",
+        "f.foot_client": "CONFIDENCIAL · {client}",
+        "f.foot": "CONFIDENCIAL · Uso restringido y autorizado",
+        "f.page": "Página {n}", "f.doc_title": "Informe de red - {x}",
+    },
+
+    # ===================================================================== FR
+    "fr": {
+        "date_fmt": "%d/%m/%Y %H:%M:%S",
+        "doc.standard": "dossier de reconnaissance réseau",
+        "doc.owner": "dossier privé du réseau",
+        "doc.pro": "dossier de sécurité réseau",
+        "generated": "Généré le", "scan": "Analyse", "network": "Réseau",
+        "operator": "Opérateur", "station": "Poste", "gateway": "Passerelle",
+        "duration": "Durée", "methods": "Méthodes", "engine": "Moteur",
+        "client": "Client", "authorization": "Autorisation",
+        "scope": "Périmètre autorisé", "prepared_for": "Préparé pour",
+        "exec_summary": "Synthèse", "devices": "Appareils",
+        "risk_grade": "Note de risque", "open_ports": "Ports ouverts",
+        "findings_n": "Constats de sécurité ({n})", "col_sev": "Grav.", "host": "Hôte",
+        "service": "Service", "finding": "Constat", "inventory": "Inventaire",
+        "vendor": "Fabricant", "type": "Type", "os": "OS", "risk": "Risque",
+        "ports": "Ports",
+        "usage_pro": ("À utiliser uniquement sur des réseaux qui vous appartiennent "
+                      "ou que vous êtes autorisé à tester."),
+        "sev.critical": "CRITIQUE", "sev.high": "ÉLEVÉ", "sev.medium": "MOYEN",
+        "sev.low": "FAIBLE", "sev.info": "INFORMATIF",
+        "risk.critical": "Critique", "risk.high": "Élevé", "risk.medium": "Moyen",
+        "risk.low": "Faible", "risk.info": "Informatif",
+        "f.title_pro": "RAPPORT D'ÉVALUATION DE LA SÉCURITÉ DU RÉSEAU",
+        "f.title": "RAPPORT D'INVESTIGATION RÉSEAU",
+        "f.subtitle_client": "Client : {client}",
+        "f.subtitle": "Inventaire technique des actifs et de la posture de sécurité",
+        "f.report_id": "Identifiant du rapport",
+        "f.collected_at": "Date et heure de la collecte",
+        "f.issued_at": "Date et heure d'émission", "f.network_analyzed": "Réseau analysé",
+        "f.operator_station": "Poste de l'opérateur",
+        "f.devices_identified": "Appareils identifiés", "f.tool_used": "Outil utilisé",
+        "f.client_org": "Client / organisation", "f.tech_lead": "Responsable technique",
+        "f.auth_ref": "Référence de l'autorisation", "f.auth_scope": "Périmètre autorisé",
+        "f.network_owner": "Titulaire du réseau",
+        "f.conf_notice": ("<b>DOCUMENT CONFIDENTIEL.</b> Usage restreint et autorisé. Ce "
+                          "rapport peut contenir des données personnelles (adresses IP et "
+                          "MAC, noms d'appareils) protégées par la loi brésilienne "
+                          "n° 13.709/2018 (LGPD). Voir la section de confidentialité à la "
+                          "fin."),
+        "f.s1": "1. Informations sur l'investigation",
+        "f.collected": "Date/heure de la collecte",
+        "f.scan_profile": "Profil d'analyse", "f.dns": "Serveurs DNS",
+        "f.s2": "2. Synthèse",
+        "f.summary": ("L'analyse a identifié <b>{n}</b> appareil(s) sur le réseau "
+                      "<b>{network}</b>. La posture de sécurité globale a reçu la note "
+                      "<b>{grade}</b> (indice {score}/100). {c} constat(s) critique(s), "
+                      "{h} à risque élevé, {m} moyen(s) et {l} faible(s) ont été "
+                      "relevés."),
+        "f.severity": "Gravité", "f.quantity": "Quantité",
+        "f.top_risk": "Appareils les plus à risque", "f.col_index": "Indice",
+        "f.col_findings": "Constats",
+        "f.s3": "3. Inventaire des appareils", "f.col_name": "Nom",
+        "f.s4": "4. Constats de sécurité",
+        "f.none": "Aucun service exposé à risque n'a été identifié.",
+        "f.col_finding_rec": "Constat / Recommandation",
+        "f.remediation": "Plan de remédiation priorisé", "f.col_priority": "Priorité",
+        "f.col_action": "Action recommandée", "f.col_hosts": "Hôtes",
+        "f.s5": "5. Détail par appareil", "f.tag_operator": "(opérateur)",
+        "f.tag_gateway": "(passerelle)", "f.kv_mac": "MAC / Fabricant",
+        "f.kv_host": "Nom d'hôte", "f.kv_netbios": "NetBIOS / Groupe",
+        "f.kv_os": "Système d'exploitation", "f.kv_latency": "Latence",
+        "f.kv_methods": "Méthodes de découverte", "f.kv_risk": "Indice de risque",
+        "f.col_port": "Port", "f.col_product": "Produit / Version",
+        "f.col_banner": "Bannière",
+        "f.conf_title": "Confidentialité et protection des données",
+        "f.p1": ("<b>1. Classification.</b> Ce document est <b>CONFIDENTIEL</b> et "
+                 "destiné exclusivement à son ou ses destinataires autorisés. Toute "
+                 "reproduction, diffusion ou divulgation, totale ou partielle, sans "
+                 "l'autorisation expresse du responsable est interdite."),
+        "f.p2": ("<b>2. Nature des données.</b> Le rapport contient des informations "
+                 "techniques et, potentiellement, des <b>données personnelles</b> — "
+                 "telles que des adresses IP et MAC et des noms d'appareils — qui, au "
+                 "sens de l'art. 5, I, de la loi brésilienne n° 13.709/2018 (Loi générale "
+                 "sur la protection des données personnelles — LGPD), peuvent constituer "
+                 "des données personnelles lorsqu'elles sont associées à une personne "
+                 "physique identifiée ou identifiable."),
+        "f.p3": ("<b>3. Finalité et base légale.</b> Les données ont été collectées dans "
+                 "le but spécifique d'auditer et d'évaluer la sécurité du réseau, "
+                 "{basis}dans le respect des principes de finalité, d'adéquation, de "
+                 "nécessité (minimisation) et de transparence prévus à l'art. 6 de la "
+                 "LGPD."),
+        "f.basis_pro": ("avec l'autorisation formelle du client <b>{client}</b> "
+                        "(référence <b>{auth_ref}</b>), limitée au périmètre "
+                        "<b>{scope}</b>, "),
+        "f.basis_owner": "avec l'autorisation du titulaire de l'infrastructure, ",
+        "f.p4": ("<b>4. Restriction du traitement et conservation.</b> L'accès doit être "
+                 "limité aux seules personnes qui en ont strictement besoin. Il est "
+                 "recommandé de ne conserver le document que pendant la durée nécessaire "
+                 "à sa finalité, puis de procéder à sa <b>destruction sécurisée</b> "
+                 "(suppression définitive), conformément aux art. 15 et 16 de la LGPD."),
+        "f.p5": ("<b>5. Usage autorisé et responsabilité.</b> Cette investigation et "
+                 "l'utilisation de l'outil {tool} sont destinées exclusivement aux réseaux "
+                 "appartenant au responsable ou pour lesquels celui-ci dispose d'une "
+                 "autorisation expresse de test. L'analyse de réseaux tiers sans "
+                 "consentement peut constituer une infraction civile et pénale. "
+                 "L'exécutant assume les obligations d'agent de traitement (responsable "
+                 "de traitement/sous-traitant) qui lui incombent."),
+        "f.p6": ("<b>6. Droits des personnes concernées.</b> Les personnes concernées "
+                 "peuvent exercer les droits prévus à l'art. 18 de la LGPD, notamment la "
+                 "confirmation du traitement, l'accès, la rectification, "
+                 "l'anonymisation, le blocage et l'effacement des données personnelles "
+                 "traitées."),
+        "f.p7": ("<b>7. Exclusion de garantie.</b> Le présent rapport reflète l'état du "
+                 "réseau au moment de la collecte ({generated}) et est fourni « en "
+                 "l'état », sans garantie d'exhaustivité. Les constats signalés comme "
+                 "vulnérabilités possibles (CVE) sont des indicateurs à vérifier "
+                 "manuellement et non une confirmation définitive."),
+        "f.id_label": "Identifiant", "f.collect_label": "Collecte",
+        "f.issue_label": "Émission",
+        "f.sign_resp": "Responsable de l'investigation :",
+        "f.sign_sig": "Signature :", "f.sign_date": "Date :",
+        "f.date_blank": "____/____/________",
+        "f.foot_client": "CONFIDENTIEL · {client}",
+        "f.foot": "CONFIDENTIEL · Usage restreint et autorisé",
+        "f.page": "Page {n}", "f.doc_title": "Rapport réseau - {x}",
+    },
+
+    # ===================================================================== DE
+    "de": {
+        "date_fmt": "%d.%m.%Y %H:%M:%S",
+        "doc.standard": "Netzwerk-Aufklärungsdossier",
+        "doc.owner": "privates Netzwerkdossier",
+        "doc.pro": "Netzwerk-Sicherheitsdossier",
+        "generated": "Erstellt", "scan": "Scan", "network": "Netzwerk",
+        "operator": "Bediener", "station": "Arbeitsplatz", "gateway": "Gateway",
+        "duration": "Dauer", "methods": "Methoden", "engine": "Engine",
+        "client": "Kunde", "authorization": "Autorisierung",
+        "scope": "Autorisierter Umfang", "prepared_for": "Erstellt für",
+        "exec_summary": "Zusammenfassung", "devices": "Geräte",
+        "risk_grade": "Risikonote", "open_ports": "Offene Ports",
+        "findings_n": "Sicherheitsbefunde ({n})", "col_sev": "Schw.", "host": "Host",
+        "service": "Dienst", "finding": "Befund", "inventory": "Inventar",
+        "vendor": "Hersteller", "type": "Typ", "os": "BS", "risk": "Risiko",
+        "ports": "Ports",
+        "usage_pro": ("Nur in Netzwerken verwenden, die Ihnen gehören oder für deren "
+                      "Test Sie autorisiert sind."),
+        "sev.critical": "KRITISCH", "sev.high": "HOCH", "sev.medium": "MITTEL",
+        "sev.low": "NIEDRIG", "sev.info": "INFORMATIV",
+        "risk.critical": "Kritisch", "risk.high": "Hoch", "risk.medium": "Mittel",
+        "risk.low": "Niedrig", "risk.info": "Informativ",
+        "f.title_pro": "BERICHT ZUR SICHERHEITSBEWERTUNG DES NETZWERKS",
+        "f.title": "NETZWERK-UNTERSUCHUNGSBERICHT",
+        "f.subtitle_client": "Kunde: {client}",
+        "f.subtitle": "Technische Erhebung der Assets und der Sicherheitslage",
+        "f.report_id": "Berichtskennung",
+        "f.collected_at": "Datum und Uhrzeit der Erfassung",
+        "f.issued_at": "Datum und Uhrzeit der Ausstellung",
+        "f.network_analyzed": "Analysiertes Netzwerk",
+        "f.operator_station": "Arbeitsplatz des Bedieners",
+        "f.devices_identified": "Erkannte Geräte", "f.tool_used": "Verwendetes Werkzeug",
+        "f.client_org": "Kunde / Organisation", "f.tech_lead": "Technisch verantwortlich",
+        "f.auth_ref": "Referenz der Autorisierung", "f.auth_scope": "Autorisierter Umfang",
+        "f.network_owner": "Netzwerkinhaber",
+        "f.conf_notice": ("<b>VERTRAULICHES DOKUMENT.</b> Eingeschränkte, autorisierte "
+                          "Nutzung. Dieser Bericht kann personenbezogene Daten (IP- und "
+                          "MAC-Adressen, Gerätenamen) enthalten, die durch das "
+                          "brasilianische Gesetz Nr. 13.709/2018 (LGPD) geschützt sind. "
+                          "Siehe den Abschnitt zur Vertraulichkeit am Ende."),
+        "f.s1": "1. Angaben zur Untersuchung", "f.collected": "Datum/Uhrzeit der Erfassung",
+        "f.scan_profile": "Scanprofil", "f.dns": "DNS-Server",
+        "f.s2": "2. Zusammenfassung",
+        "f.summary": ("Der Scan hat <b>{n}</b> Gerät(e) im Netzwerk <b>{network}</b> "
+                      "erkannt. Die allgemeine Sicherheitslage wurde mit der Note "
+                      "<b>{grade}</b> bewertet (Index {score}/100). Es wurden {c} "
+                      "kritische, {h} hohe, {m} mittlere und {l} niedrige Befunde "
+                      "festgestellt."),
+        "f.severity": "Schweregrad", "f.quantity": "Anzahl",
+        "f.top_risk": "Geräte mit dem höchsten Risiko", "f.col_index": "Index",
+        "f.col_findings": "Befunde",
+        "f.s3": "3. Geräteinventar", "f.col_name": "Name",
+        "f.s4": "4. Sicherheitsbefunde",
+        "f.none": "Es wurde kein riskanter exponierter Dienst festgestellt.",
+        "f.col_finding_rec": "Befund / Empfehlung",
+        "f.remediation": "Priorisierter Maßnahmenplan", "f.col_priority": "Priorität",
+        "f.col_action": "Empfohlene Maßnahme", "f.col_hosts": "Hosts",
+        "f.s5": "5. Details pro Gerät", "f.tag_operator": "(Bediener)",
+        "f.tag_gateway": "(Gateway)", "f.kv_mac": "MAC / Hersteller",
+        "f.kv_host": "Hostname", "f.kv_netbios": "NetBIOS / Arbeitsgruppe",
+        "f.kv_os": "Betriebssystem", "f.kv_latency": "Latenz",
+        "f.kv_methods": "Erkennungsmethoden", "f.kv_risk": "Risikoindex",
+        "f.col_port": "Port", "f.col_product": "Produkt / Version",
+        "f.col_banner": "Banner",
+        "f.conf_title": "Vertraulichkeit und Datenschutz",
+        "f.p1": ("<b>1. Einstufung.</b> Dieses Dokument ist <b>VERTRAULICH</b> und "
+                 "ausschließlich für den/die autorisierten Empfänger bestimmt. Die "
+                 "vollständige oder teilweise Vervielfältigung, Verbreitung oder "
+                 "Offenlegung ohne ausdrückliche Genehmigung des Verantwortlichen ist "
+                 "untersagt."),
+        "f.p2": ("<b>2. Art der Daten.</b> Der Bericht enthält technische Informationen "
+                 "und möglicherweise <b>personenbezogene Daten</b> — etwa IP- und "
+                 "MAC-Adressen sowie Gerätenamen —, die gemäß Art. 5 I des "
+                 "brasilianischen Gesetzes Nr. 13.709/2018 (Allgemeines "
+                 "Datenschutzgesetz — LGPD) personenbezogene Daten darstellen können, "
+                 "wenn sie einer identifizierten oder identifizierbaren natürlichen "
+                 "Person zugeordnet werden."),
+        "f.p3": ("<b>3. Zweck und Rechtsgrundlage.</b> Die Daten wurden zu dem "
+                 "bestimmten Zweck erhoben, die Sicherheit des Netzwerks zu prüfen und zu "
+                 "bewerten, {basis}unter Beachtung der in Art. 6 LGPD vorgesehenen "
+                 "Grundsätze der Zweckbindung, Angemessenheit, Erforderlichkeit "
+                 "(Datenminimierung) und Transparenz."),
+        "f.basis_pro": ("mit förmlicher Genehmigung des Auftraggebers <b>{client}</b> "
+                        "(Referenz <b>{auth_ref}</b>), beschränkt auf den Umfang "
+                        "<b>{scope}</b>, "),
+        "f.basis_owner": "mit Genehmigung des Inhabers der Infrastruktur, ",
+        "f.p4": ("<b>4. Verarbeitungsbeschränkung und Aufbewahrung.</b> Der Zugriff ist "
+                 "auf die unbedingt erforderlichen Personen zu beschränken. Es wird "
+                 "empfohlen, das Dokument nur so lange aufzubewahren, wie es zur "
+                 "Erfüllung seines Zwecks erforderlich ist, und es anschließend gemäß "
+                 "Art. 15 und 16 LGPD <b>sicher zu vernichten</b> (endgültig zu "
+                 "löschen)."),
+        "f.p5": ("<b>5. Autorisierte Nutzung und Verantwortung.</b> Diese Untersuchung "
+                 "und die Nutzung des Werkzeugs {tool} sind ausschließlich für Netzwerke "
+                 "bestimmt, die dem Verantwortlichen gehören oder für die er eine "
+                 "ausdrückliche Testgenehmigung besitzt. Das Scannen fremder Netzwerke "
+                 "ohne Zustimmung kann eine zivil- und strafrechtliche Verletzung "
+                 "darstellen. Der Ausführende übernimmt die ihm obliegenden Pflichten als "
+                 "an der Verarbeitung Beteiligter (Verantwortlicher/Auftragsverarbeiter)."),
+        "f.p6": ("<b>6. Rechte der betroffenen Personen.</b> Den betroffenen Personen "
+                 "wird die Ausübung der in Art. 18 LGPD vorgesehenen Rechte "
+                 "gewährleistet, einschließlich Bestätigung der Verarbeitung, Auskunft, "
+                 "Berichtigung, Anonymisierung, Sperrung und Löschung der verarbeiteten "
+                 "personenbezogenen Daten."),
+        "f.p7": ("<b>7. Haftungsausschluss.</b> Dieser Bericht gibt den Zustand des "
+                 "Netzwerks zum Zeitpunkt der Erfassung ({generated}) wieder und wird "
+                 "„wie besehen“ ohne Gewähr für Vollständigkeit bereitgestellt. Als "
+                 "mögliche Schwachstellen (CVE) gekennzeichnete Befunde sind Hinweise zur "
+                 "manuellen Überprüfung, keine endgültige Bestätigung."),
+        "f.id_label": "Kennung", "f.collect_label": "Erfassung",
+        "f.issue_label": "Ausstellung",
+        "f.sign_resp": "Verantwortlich für die Untersuchung:",
+        "f.sign_sig": "Unterschrift:", "f.sign_date": "Datum:",
+        "f.date_blank": "____.____.________",
+        "f.foot_client": "VERTRAULICH · {client}",
+        "f.foot": "VERTRAULICH · Eingeschränkte, autorisierte Nutzung",
+        "f.page": "Seite {n}", "f.doc_title": "Netzwerkbericht - {x}",
+    },
+
+    # ===================================================================== IT
+    "it": {
+        "date_fmt": "%d/%m/%Y %H:%M:%S",
+        "doc.standard": "dossier di ricognizione di rete",
+        "doc.owner": "dossier privato della rete",
+        "doc.pro": "dossier di sicurezza di rete",
+        "generated": "Generato", "scan": "Scansione", "network": "Rete",
+        "operator": "Operatore", "station": "Postazione", "gateway": "Gateway",
+        "duration": "Durata", "methods": "Metodi", "engine": "Motore",
+        "client": "Cliente", "authorization": "Autorizzazione",
+        "scope": "Perimetro autorizzato", "prepared_for": "Preparato per",
+        "exec_summary": "Sintesi", "devices": "Dispositivi",
+        "risk_grade": "Voto di rischio", "open_ports": "Porte aperte",
+        "findings_n": "Rilievi di sicurezza ({n})", "col_sev": "Grav.", "host": "Host",
+        "service": "Servizio", "finding": "Rilievo", "inventory": "Inventario",
+        "vendor": "Produttore", "type": "Tipo", "os": "SO", "risk": "Rischio",
+        "ports": "Porte",
+        "usage_pro": ("Usare solo su reti di vostra proprietà o che siete "
+                      "autorizzati a testare."),
+        "sev.critical": "CRITICO", "sev.high": "ALTO", "sev.medium": "MEDIO",
+        "sev.low": "BASSO", "sev.info": "INFORMATIVO",
+        "risk.critical": "Critico", "risk.high": "Alto", "risk.medium": "Medio",
+        "risk.low": "Basso", "risk.info": "Informativo",
+        "f.title_pro": "RAPPORTO DI VALUTAZIONE DELLA SICUREZZA DI RETE",
+        "f.title": "RAPPORTO DI INDAGINE DI RETE",
+        "f.subtitle_client": "Cliente: {client}",
+        "f.subtitle": "Rilevazione tecnica degli asset e della postura di sicurezza",
+        "f.report_id": "Identificativo del rapporto",
+        "f.collected_at": "Data e ora della raccolta",
+        "f.issued_at": "Data e ora di emissione", "f.network_analyzed": "Rete analizzata",
+        "f.operator_station": "Postazione dell'operatore",
+        "f.devices_identified": "Dispositivi identificati",
+        "f.tool_used": "Strumento utilizzato",
+        "f.client_org": "Cliente / organizzazione", "f.tech_lead": "Responsabile tecnico",
+        "f.auth_ref": "Riferimento dell'autorizzazione",
+        "f.auth_scope": "Perimetro autorizzato", "f.network_owner": "Titolare della rete",
+        "f.conf_notice": ("<b>DOCUMENTO RISERVATO.</b> Uso limitato e autorizzato. Questo "
+                          "rapporto può contenere dati personali (indirizzi IP e MAC, nomi "
+                          "dei dispositivi) tutelati dalla legge brasiliana n. 13.709/2018 "
+                          "(LGPD). Consultare la sezione sulla riservatezza alla fine."),
+        "f.s1": "1. Informazioni sull'indagine", "f.collected": "Data/ora della raccolta",
+        "f.scan_profile": "Profilo di scansione", "f.dns": "Server DNS",
+        "f.s2": "2. Sintesi",
+        "f.summary": ("La scansione ha identificato <b>{n}</b> dispositivo/i sulla rete "
+                      "<b>{network}</b>. La postura di sicurezza complessiva è stata "
+                      "valutata con il voto <b>{grade}</b> (indice {score}/100). Sono "
+                      "stati registrati {c} rilievo/i critico/i, {h} ad alto rischio, "
+                      "{m} medio/i e {l} basso/i."),
+        "f.severity": "Gravità", "f.quantity": "Quantità",
+        "f.top_risk": "Dispositivi a rischio più elevato", "f.col_index": "Indice",
+        "f.col_findings": "Rilievi",
+        "f.s3": "3. Inventario dei dispositivi", "f.col_name": "Nome",
+        "f.s4": "4. Rilievi di sicurezza",
+        "f.none": "Non è stato identificato alcun servizio esposto a rischio.",
+        "f.col_finding_rec": "Rilievo / Raccomandazione",
+        "f.remediation": "Piano di rimedio prioritizzato", "f.col_priority": "Priorità",
+        "f.col_action": "Azione raccomandata", "f.col_hosts": "Host",
+        "f.s5": "5. Dettaglio per dispositivo", "f.tag_operator": "(operatore)",
+        "f.tag_gateway": "(gateway)", "f.kv_mac": "MAC / Produttore",
+        "f.kv_host": "Nome host", "f.kv_netbios": "NetBIOS / Gruppo",
+        "f.kv_os": "Sistema operativo", "f.kv_latency": "Latenza",
+        "f.kv_methods": "Metodi di rilevamento", "f.kv_risk": "Indice di rischio",
+        "f.col_port": "Porta", "f.col_product": "Prodotto / Versione",
+        "f.col_banner": "Banner",
+        "f.conf_title": "Riservatezza e protezione dei dati",
+        "f.p1": ("<b>1. Classificazione.</b> Il presente documento è <b>RISERVATO</b> ed "
+                 "è destinato esclusivamente al/ai destinatario/i autorizzato/i. È vietata "
+                 "la riproduzione, distribuzione o divulgazione, totale o parziale, senza "
+                 "l'autorizzazione espressa del responsabile."),
+        "f.p2": ("<b>2. Natura dei dati.</b> Il rapporto contiene informazioni tecniche "
+                 "e, potenzialmente, <b>dati personali</b> — come indirizzi IP e MAC e "
+                 "nomi dei dispositivi — che, ai sensi dell'art. 5, I, della legge "
+                 "brasiliana n. 13.709/2018 (Legge generale sulla protezione dei dati "
+                 "personali — LGPD), possono costituire dati personali se associati a una "
+                 "persona fisica identificata o identificabile."),
+        "f.p3": ("<b>3. Finalità e base giuridica.</b> I dati sono stati raccolti allo "
+                 "scopo specifico di verificare e valutare la sicurezza della rete, "
+                 "{basis}nel rispetto dei principi di finalità, adeguatezza, necessità "
+                 "(minimizzazione) e trasparenza previsti dall'art. 6 della LGPD."),
+        "f.basis_pro": ("con l'autorizzazione formale del committente <b>{client}</b> "
+                        "(riferimento <b>{auth_ref}</b>), limitata al perimetro "
+                        "<b>{scope}</b>, "),
+        "f.basis_owner": "con l'autorizzazione del titolare dell'infrastruttura, ",
+        "f.p4": ("<b>4. Limitazione del trattamento e conservazione.</b> L'accesso deve "
+                 "essere limitato alle persone strettamente necessarie. Si raccomanda di "
+                 "conservare il documento solo per il tempo necessario al raggiungimento "
+                 "della sua finalità e di procedere poi alla sua <b>distruzione "
+                 "sicura</b> (cancellazione definitiva), ai sensi degli artt. 15 e 16 "
+                 "della LGPD."),
+        "f.p5": ("<b>5. Uso autorizzato e responsabilità.</b> La presente indagine e "
+                 "l'uso dello strumento {tool} sono destinati esclusivamente a reti di "
+                 "proprietà del responsabile o per le quali questi disponga di "
+                 "un'autorizzazione espressa ai test. La scansione di reti di terzi senza "
+                 "consenso può costituire illecito civile e penale. L'esecutore assume "
+                 "gli obblighi di soggetto del trattamento (titolare/responsabile) che "
+                 "gli competono."),
+        "f.p6": ("<b>6. Diritti degli interessati.</b> Agli interessati è garantito "
+                 "l'esercizio dei diritti previsti dall'art. 18 della LGPD, tra cui la "
+                 "conferma del trattamento, l'accesso, la rettifica, l'anonimizzazione, "
+                 "il blocco e la cancellazione dei dati personali trattati."),
+        "f.p7": ("<b>7. Esclusione di garanzia.</b> Il presente rapporto riflette lo "
+                 "stato della rete al momento della raccolta ({generated}) ed è fornito "
+                 "«così com'è», senza garanzia di completezza. I rilievi indicati come "
+                 "possibili vulnerabilità (CVE) costituiscono indicatori da verificare "
+                 "manualmente, non una conferma definitiva."),
+        "f.id_label": "Identificativo", "f.collect_label": "Raccolta",
+        "f.issue_label": "Emissione",
+        "f.sign_resp": "Responsabile dell'indagine:",
+        "f.sign_sig": "Firma:", "f.sign_date": "Data:",
+        "f.date_blank": "____/____/________",
+        "f.foot_client": "RISERVATO · {client}",
+        "f.foot": "RISERVATO · Uso limitato e autorizzato",
+        "f.page": "Pagina {n}", "f.doc_title": "Rapporto di rete - {x}",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# International ("global") data-protection wording, used by editions that may
+# be run anywhere in the world (spec legal="global"). It replaces the
+# LGPD-specific clauses (f.conf_notice, f.p2 ... f.p6) with jurisdiction-neutral
+# text that names the main laws instead of citing articles of one of them.
+# ---------------------------------------------------------------------------
+_GLOBAL_LEGAL = {
+    "en": {
+        "fg.conf_notice": ("<b>CONFIDENTIAL DOCUMENT.</b> Restricted, authorized use. This "
+                           "report may contain personal data (IP and MAC addresses, device "
+                           "names) protected by the data protection laws that apply where "
+                           "the network is located. See the confidentiality section at the "
+                           "end."),
+        "fg.p2": ("<b>2. Nature of the data.</b> This report contains technical "
+                  "information and, potentially, <b>personal data</b> — such as IP and MAC "
+                  "addresses and device names — which can identify a natural person "
+                  "directly or indirectly. Such data is protected by data protection laws "
+                  "such as the GDPR (European Union / EEA) and the UK GDPR, the LGPD "
+                  "(Brazil), the CCPA/CPRA (California, USA), PIPEDA (Canada), the APPI "
+                  "(Japan), the Privacy Act (Australia) and equivalent laws in other "
+                  "jurisdictions."),
+        "fg.p3": ("<b>3. Purpose and legal basis.</b> The data were collected for the "
+                  "specific purpose of auditing and assessing the security of the "
+                  "network, {basis}in line with the internationally recognised data "
+                  "protection principles of purpose limitation, data minimisation, "
+                  "proportionality and transparency."),
+        "fg.p4": ("<b>4. Processing restrictions and retention.</b> Access must be "
+                  "limited to those who strictly need it. The document should be kept "
+                  "only for as long as needed to fulfil its purpose and then "
+                  "<b>securely disposed of</b> (permanently deleted), in accordance with "
+                  "the retention rules that apply to the responsible party."),
+        "fg.p5": ("<b>5. Authorized use and responsibility.</b> This investigation and "
+                  "the use of the {tool} tool are intended exclusively for networks owned "
+                  "by the responsible party or for which that party holds express "
+                  "authorization to test. Scanning networks without the owner's consent "
+                  "may be unlawful in many jurisdictions, for example under computer "
+                  "misuse, unauthorised access or telecommunications laws. The person "
+                  "running the tool is responsible for complying with the laws that apply "
+                  "to them, including any obligations as a data controller or processor."),
+        "fg.p6": ("<b>6. Rights of individuals.</b> Individuals whose personal data "
+                  "appear in this report may have rights under the applicable law — such "
+                  "as access, rectification, erasure, restriction of processing and "
+                  "objection — which must be respected."),
+    },
+    "pt": {
+        "fg.conf_notice": ("<b>DOCUMENTO CONFIDENCIAL.</b> Uso restrito e autorizado. Este "
+                           "relatório pode conter dados pessoais (endereços IP e MAC, nomes "
+                           "de dispositivos) protegidos pelas leis de proteção de dados "
+                           "aplicáveis no local da rede. Consulte a seção de "
+                           "confidencialidade ao final."),
+        "fg.p2": ("<b>2. Natureza dos dados.</b> O relatório contém informações técnicas "
+                  "e, potencialmente, <b>dados pessoais</b> — tais como endereços IP e MAC "
+                  "e nomes de dispositivos — capazes de identificar, direta ou "
+                  "indiretamente, uma pessoa natural. Esses dados são protegidos por leis "
+                  "de proteção de dados como o GDPR (União Europeia / EEE) e o UK GDPR, a "
+                  "LGPD (Brasil), a CCPA/CPRA (Califórnia, EUA), a PIPEDA (Canadá), a APPI "
+                  "(Japão), o Privacy Act (Austrália) e normas equivalentes em outras "
+                  "jurisdições."),
+        "fg.p3": ("<b>3. Finalidade e base legal.</b> Os dados foram coletados com a "
+                  "finalidade específica de auditoria e avaliação da segurança da rede, "
+                  "{basis}em conformidade com os princípios de proteção de dados "
+                  "reconhecidos internacionalmente: limitação da finalidade, minimização, "
+                  "proporcionalidade e transparência."),
+        "fg.p4": ("<b>4. Restrição de tratamento e retenção.</b> O acesso deve ser "
+                  "limitado às pessoas estritamente necessárias. Recomenda-se reter o "
+                  "documento apenas pelo período necessário ao cumprimento de sua "
+                  "finalidade e proceder ao seu <b>descarte seguro</b> (eliminação "
+                  "definitiva) ao término, conforme as regras de retenção aplicáveis ao "
+                  "responsável."),
+        "fg.p5": ("<b>5. Uso autorizado e responsabilidade.</b> Esta investigação e o uso "
+                  "da ferramenta {tool} destinam-se exclusivamente a redes de propriedade "
+                  "do responsável ou sobre as quais este possua autorização expressa para "
+                  "testes. A varredura de redes sem o consentimento do titular pode ser "
+                  "ilegal em muitas jurisdições, por exemplo segundo leis de crimes "
+                  "informáticos, de acesso não autorizado ou de telecomunicações. Quem "
+                  "executa a ferramenta é responsável por cumprir as leis que lhe forem "
+                  "aplicáveis, incluindo eventuais obrigações como controlador ou operador "
+                  "de dados."),
+        "fg.p6": ("<b>6. Direitos dos titulares.</b> As pessoas cujos dados pessoais "
+                  "constam deste relatório podem ter direitos previstos na lei aplicável — "
+                  "como acesso, correção, eliminação, limitação do tratamento e oposição — "
+                  "que devem ser respeitados."),
+    },
+    "es": {
+        "fg.conf_notice": ("<b>DOCUMENTO CONFIDENCIAL.</b> Uso restringido y autorizado. "
+                           "Este informe puede contener datos personales (direcciones IP y "
+                           "MAC, nombres de dispositivos) protegidos por las leyes de "
+                           "protección de datos aplicables en el lugar donde se encuentra la "
+                           "red. Consulte la sección de confidencialidad al final."),
+        "fg.p2": ("<b>2. Naturaleza de los datos.</b> El informe contiene información "
+                  "técnica y, potencialmente, <b>datos personales</b> — como direcciones IP "
+                  "y MAC y nombres de dispositivos — que pueden identificar, directa o "
+                  "indirectamente, a una persona física. Estos datos están protegidos por "
+                  "leyes de protección de datos como el RGPD (Unión Europea / EEE) y el UK "
+                  "GDPR, la LGPD (Brasil), la CCPA/CPRA (California, EE. UU.), la PIPEDA "
+                  "(Canadá), la APPI (Japón), la Privacy Act (Australia) y normas "
+                  "equivalentes en otras jurisdicciones."),
+        "fg.p3": ("<b>3. Finalidad y base legal.</b> Los datos se recopilaron con la "
+                  "finalidad específica de auditar y evaluar la seguridad de la red, "
+                  "{basis}de conformidad con los principios de protección de datos "
+                  "reconocidos internacionalmente: limitación de la finalidad, "
+                  "minimización, proporcionalidad y transparencia."),
+        "fg.p4": ("<b>4. Restricción del tratamiento y conservación.</b> El acceso debe "
+                  "limitarse a las personas estrictamente necesarias. Se recomienda "
+                  "conservar el documento solo durante el período necesario para cumplir "
+                  "su finalidad y proceder a su <b>eliminación segura</b> (borrado "
+                  "definitivo) al término, conforme a las normas de conservación "
+                  "aplicables al responsable."),
+        "fg.p5": ("<b>5. Uso autorizado y responsabilidad.</b> Esta investigación y el uso "
+                  "de la herramienta {tool} están destinados exclusivamente a redes de "
+                  "propiedad del responsable o sobre las cuales este posea autorización "
+                  "expresa para realizar pruebas. Escanear redes sin el consentimiento de "
+                  "su titular puede ser ilegal en muchas jurisdicciones, por ejemplo según "
+                  "las leyes sobre delitos informáticos, acceso no autorizado o "
+                  "telecomunicaciones. Quien ejecuta la herramienta es responsable de "
+                  "cumplir las leyes que le sean aplicables, incluidas las posibles "
+                  "obligaciones como responsable o encargado del tratamiento."),
+        "fg.p6": ("<b>6. Derechos de los titulares.</b> Las personas cuyos datos "
+                  "personales figuran en este informe pueden tener derechos reconocidos "
+                  "por la ley aplicable — como acceso, rectificación, supresión, "
+                  "limitación del tratamiento y oposición — que deben respetarse."),
+    },
+    "fr": {
+        "fg.conf_notice": ("<b>DOCUMENT CONFIDENTIEL.</b> Usage restreint et autorisé. Ce "
+                           "rapport peut contenir des données personnelles (adresses IP et "
+                           "MAC, noms d'appareils) protégées par les lois sur la protection "
+                           "des données applicables là où se trouve le réseau. Voir la "
+                           "section de confidentialité à la fin."),
+        "fg.p2": ("<b>2. Nature des données.</b> Le rapport contient des informations "
+                  "techniques et, potentiellement, des <b>données personnelles</b> — "
+                  "telles que des adresses IP et MAC et des noms d'appareils — "
+                  "susceptibles d'identifier, directement ou indirectement, une personne "
+                  "physique. Ces données sont protégées par des lois telles que le RGPD "
+                  "(Union européenne / EEE) et le UK GDPR, la LGPD (Brésil), le CCPA/CPRA "
+                  "(Californie, États-Unis), la LPRPDE/PIPEDA (Canada), l'APPI (Japon), le "
+                  "Privacy Act (Australie) et les textes équivalents d'autres "
+                  "juridictions."),
+        "fg.p3": ("<b>3. Finalité et base légale.</b> Les données ont été collectées dans "
+                  "le but spécifique d'auditer et d'évaluer la sécurité du réseau, "
+                  "{basis}conformément aux principes de protection des données reconnus "
+                  "internationalement : limitation des finalités, minimisation, "
+                  "proportionnalité et transparence."),
+        "fg.p4": ("<b>4. Restriction du traitement et conservation.</b> L'accès doit être "
+                  "limité aux seules personnes qui en ont strictement besoin. Il est "
+                  "recommandé de ne conserver le document que pendant la durée nécessaire "
+                  "à sa finalité, puis de procéder à sa <b>destruction sécurisée</b> "
+                  "(suppression définitive), conformément aux règles de conservation "
+                  "applicables au responsable."),
+        "fg.p5": ("<b>5. Usage autorisé et responsabilité.</b> Cette investigation et "
+                  "l'utilisation de l'outil {tool} sont destinées exclusivement aux réseaux "
+                  "appartenant au responsable ou pour lesquels celui-ci dispose d'une "
+                  "autorisation expresse de test. Analyser un réseau sans le consentement "
+                  "de son titulaire peut être illégal dans de nombreuses juridictions, par "
+                  "exemple au titre des lois sur la fraude informatique, l'accès non "
+                  "autorisé ou les télécommunications. La personne qui utilise l'outil est "
+                  "responsable du respect des lois qui lui sont applicables, y compris "
+                  "d'éventuelles obligations de responsable de traitement ou de "
+                  "sous-traitant."),
+        "fg.p6": ("<b>6. Droits des personnes.</b> Les personnes dont les données "
+                  "personnelles figurent dans ce rapport peuvent disposer de droits en "
+                  "vertu de la loi applicable — accès, rectification, effacement, "
+                  "limitation du traitement et opposition — qui doivent être respectés."),
+    },
+    "de": {
+        "fg.conf_notice": ("<b>VERTRAULICHES DOKUMENT.</b> Eingeschränkte, autorisierte "
+                           "Nutzung. Dieser Bericht kann personenbezogene Daten (IP- und "
+                           "MAC-Adressen, Gerätenamen) enthalten, die durch die am Standort "
+                           "des Netzwerks geltenden Datenschutzgesetze geschützt sind. Siehe "
+                           "den Abschnitt zur Vertraulichkeit am Ende."),
+        "fg.p2": ("<b>2. Art der Daten.</b> Der Bericht enthält technische Informationen "
+                  "und möglicherweise <b>personenbezogene Daten</b> — etwa IP- und "
+                  "MAC-Adressen sowie Gerätenamen —, die eine natürliche Person direkt "
+                  "oder indirekt identifizieren können. Solche Daten sind durch "
+                  "Datenschutzgesetze geschützt, etwa die DSGVO (Europäische Union / EWR) "
+                  "und die UK GDPR, das LGPD (Brasilien), den CCPA/CPRA (Kalifornien, "
+                  "USA), PIPEDA (Kanada), das APPI (Japan), den Privacy Act (Australien) "
+                  "und gleichwertige Vorschriften anderer Rechtsordnungen."),
+        "fg.p3": ("<b>3. Zweck und Rechtsgrundlage.</b> Die Daten wurden zu dem "
+                  "bestimmten Zweck erhoben, die Sicherheit des Netzwerks zu prüfen und zu "
+                  "bewerten, {basis}im Einklang mit den international anerkannten "
+                  "Datenschutzgrundsätzen der Zweckbindung, Datenminimierung, "
+                  "Verhältnismäßigkeit und Transparenz."),
+        "fg.p4": ("<b>4. Verarbeitungsbeschränkung und Aufbewahrung.</b> Der Zugriff ist "
+                  "auf die unbedingt erforderlichen Personen zu beschränken. Es wird "
+                  "empfohlen, das Dokument nur so lange aufzubewahren, wie es zur "
+                  "Erfüllung seines Zwecks erforderlich ist, und es anschließend gemäß "
+                  "den für den Verantwortlichen geltenden Aufbewahrungsregeln <b>sicher "
+                  "zu vernichten</b> (endgültig zu löschen)."),
+        "fg.p5": ("<b>5. Autorisierte Nutzung und Verantwortung.</b> Diese Untersuchung "
+                  "und die Nutzung des Werkzeugs {tool} sind ausschließlich für Netzwerke "
+                  "bestimmt, die dem Verantwortlichen gehören oder für die er eine "
+                  "ausdrückliche Testgenehmigung besitzt. Das Scannen von Netzwerken ohne "
+                  "Zustimmung des Inhabers kann in vielen Rechtsordnungen rechtswidrig "
+                  "sein, etwa nach Gesetzen über Computerkriminalität, unbefugten Zugriff "
+                  "oder Telekommunikation. Wer das Werkzeug ausführt, ist für die "
+                  "Einhaltung der für ihn geltenden Gesetze verantwortlich, einschließlich "
+                  "etwaiger Pflichten als Verantwortlicher oder Auftragsverarbeiter."),
+        "fg.p6": ("<b>6. Rechte der betroffenen Personen.</b> Personen, deren "
+                  "personenbezogene Daten in diesem Bericht enthalten sind, können nach "
+                  "geltendem Recht Rechte haben — etwa auf Auskunft, Berichtigung, "
+                  "Löschung, Einschränkung der Verarbeitung und Widerspruch —, die zu "
+                  "wahren sind."),
+    },
+    "it": {
+        "fg.conf_notice": ("<b>DOCUMENTO RISERVATO.</b> Uso limitato e autorizzato. Questo "
+                           "rapporto può contenere dati personali (indirizzi IP e MAC, nomi "
+                           "dei dispositivi) tutelati dalle leggi sulla protezione dei dati "
+                           "applicabili nel luogo in cui si trova la rete. Consultare la "
+                           "sezione sulla riservatezza alla fine."),
+        "fg.p2": ("<b>2. Natura dei dati.</b> Il rapporto contiene informazioni tecniche "
+                  "e, potenzialmente, <b>dati personali</b> — come indirizzi IP e MAC e "
+                  "nomi dei dispositivi — in grado di identificare, direttamente o "
+                  "indirettamente, una persona fisica. Tali dati sono tutelati da leggi "
+                  "sulla protezione dei dati come il GDPR (Unione europea / SEE) e lo UK "
+                  "GDPR, la LGPD (Brasile), il CCPA/CPRA (California, USA), la PIPEDA "
+                  "(Canada), l'APPI (Giappone), il Privacy Act (Australia) e norme "
+                  "equivalenti di altre giurisdizioni."),
+        "fg.p3": ("<b>3. Finalità e base giuridica.</b> I dati sono stati raccolti allo "
+                  "scopo specifico di verificare e valutare la sicurezza della rete, "
+                  "{basis}nel rispetto dei principi di protezione dei dati riconosciuti a "
+                  "livello internazionale: limitazione della finalità, minimizzazione, "
+                  "proporzionalità e trasparenza."),
+        "fg.p4": ("<b>4. Limitazione del trattamento e conservazione.</b> L'accesso deve "
+                  "essere limitato alle persone strettamente necessarie. Si raccomanda di "
+                  "conservare il documento solo per il tempo necessario al raggiungimento "
+                  "della sua finalità e di procedere poi alla sua <b>distruzione "
+                  "sicura</b> (cancellazione definitiva), secondo le regole di "
+                  "conservazione applicabili al responsabile."),
+        "fg.p5": ("<b>5. Uso autorizzato e responsabilità.</b> La presente indagine e "
+                  "l'uso dello strumento {tool} sono destinati esclusivamente a reti di "
+                  "proprietà del responsabile o per le quali questi disponga di "
+                  "un'autorizzazione espressa ai test. La scansione di reti senza il "
+                  "consenso del titolare può essere illecita in molte giurisdizioni, ad "
+                  "esempio ai sensi delle leggi sui reati informatici, sull'accesso "
+                  "abusivo o sulle telecomunicazioni. Chi utilizza lo strumento è "
+                  "responsabile del rispetto delle leggi a lui applicabili, compresi gli "
+                  "eventuali obblighi di titolare o responsabile del trattamento."),
+        "fg.p6": ("<b>6. Diritti degli interessati.</b> Le persone i cui dati personali "
+                  "compaiono in questo rapporto possono godere di diritti previsti dalla "
+                  "legge applicabile — come accesso, rettifica, cancellazione, limitazione "
+                  "del trattamento e opposizione — che devono essere rispettati."),
+    },
+}
+
+for _code, _extra in _GLOBAL_LEGAL.items():
+    STRINGS[_code].update(_extra)
+
+
+def legal_key(key, legal="lgpd"):
+    """Map an LGPD clause key (f.p2 ...) to its international variant when the
+    edition's legal profile is 'global' and such a variant exists."""
+    if legal == "global" and key.startswith("f."):
+        alt = "fg." + key[2:]
+        if alt in STRINGS[DEFAULT]:
+            return alt
+    return key
+
+
+def utc_offset(dt=None):
+    """'UTC-03:00' for a naive local datetime (DST-aware) or now."""
+    from datetime import timedelta
+    local = (dt or datetime.now()).astimezone()
+    mins = int((local.utcoffset() or timedelta(0)).total_seconds() // 60)
+    sign = "+" if mins >= 0 else "-"
+    mins = abs(mins)
+    return "UTC%s%02d:%02d" % (sign, mins // 60, mins % 60)
+'''
+
+# ---------------------------------------------------------------------------
 # module: scanfyx.report.markdown
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.report.markdown'] = r'''"""Markdown dossier exporter."""
 
-from ..version import MOTTO_EN, MOTTO_PT
+from .. import edition
 from ..security import scorecard as sc_mod
-from .common import report_path, ports_inline, latency_str
+from .common import (report_path, ports_inline, latency_str, engagement_rows,
+                     doc_title)
 
 
 def export(result, config):
@@ -5997,7 +9380,11 @@ def export(result, config):
     m = result.meta
     counts = result.severity_counts()
     L = []
-    L.append("# SCANFY — Network Reconnaissance Dossier")
+    s = edition.spec()
+    who = f" — {m.client}" if m.client else ""
+    L.append(f"# {s['product']} — {doc_title().title()}{who}")
+    if s["badge"]:
+        L.append(f"*{s['badge']}*")
     L.append("")
     L.append(f"**Generated:** {m.generated}  ")
     L.append(f"**Scan type:** {m.scan_type} ({m.profile}) &nbsp; "
@@ -6008,6 +9395,21 @@ def export(result, config):
         L.append(f"**Public IP:** `{m.public_ip}` &nbsp; {m.isp} &nbsp; {m.geo}  ")
     L.append(f"**Engine:** {m.engine}")
     L.append("")
+    eng = engagement_rows(m)
+    if m.client:
+        L.append("## Engagement & authorization")
+        L.append("")
+        L.append("| | |")
+        L.append("|---|---|")
+        for k, v in eng:
+            L.append(f"| **{k}** | {v} |")
+        L.append("")
+        L.append(f"> Performed by **{m.operator}** for **{m.client}** under "
+                 f"authorization **{m.auth_ref}**, limited to the scope above.")
+        L.append("")
+    elif eng:
+        L.append(" · ".join(f"**{k}:** {v}" for k, v in eng))
+        L.append("")
 
     # summary
     L.append("## Executive summary")
@@ -6109,7 +9511,11 @@ def export(result, config):
 
     L.append("---")
     L.append("")
-    L.append(f"**{MOTTO_EN}** — *{MOTTO_PT}* 🇧🇷")
+    lines = edition.footer_lines()
+    if s["motto_en"]:
+        L.append(f"**{lines[0]}** — *{lines[1]}*" + ((" " + s["flag"]) if s["flag"] else ""))
+    else:
+        L.append(f"*{lines[0]}*")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(L))
     return path
@@ -6122,12 +9528,14 @@ SCANFY_MODULES['scanfyx.report.pdf'] = r'''"""
 PDF dossier exporter (requires reportlab).
 
 Produces a paginated PDF with a cover block, an executive summary table, the
-security-findings register and a per-device inventory. Degrades to ``None`` if
+security-findings register and a per-device inventory, in the language chosen
+by the user (see ``report.i18n``; English by default). Degrades to ``None`` if
 reportlab is not installed.
 """
 
-from .. import constants
-from ..version import __version__, MOTTO_EN, MOTTO_PT
+from .. import constants, edition
+from ..version import __version__
+from . import i18n
 from .common import report_path, ports_inline
 
 
@@ -6135,7 +9543,7 @@ def available():
     return constants.HAS_REPORTLAB
 
 
-def export(result, config):
+def export(result, config, lang=None):
     if not available():
         return None
     try:
@@ -6148,18 +9556,28 @@ def export(result, config):
     except Exception:
         return None
 
+    L = i18n.normalize(lang) or i18n.resolve(config)
+
+    def T(key, **fmt):
+        return i18n.t(L, key, **fmt)
+
     path = report_path(config, "pdf")
     m = result.meta
+    title = i18n.doc_title(L, edition.key())
     counts = result.severity_counts()
 
-    grass = colors.HexColor("#4e9120")
-    grass_l = colors.HexColor("#6abe30")
-    dark = colors.HexColor("#1b2612")
+    pal = edition.html_palette()
+    grass = colors.HexColor(pal["dark"])
+    grass_l = colors.HexColor(pal["primary"])
+    dark = colors.HexColor(edition.hex_mix(pal["dark"], "#000000", 0.6))
+    zebra = colors.HexColor(edition.hex_mix(pal["primary"], "#ffffff", 0.93))
     styles = getSampleStyleSheet()
+    # leading must exceed fontSize, or the title overprints the next line
     styles.add(ParagraphStyle("H1x", parent=styles["Title"], textColor=grass,
-                              fontSize=26, spaceAfter=2))
+                              fontSize=26, leading=32, spaceAfter=2))
     styles.add(ParagraphStyle("Sub", parent=styles["Normal"],
                               textColor=colors.grey, fontSize=9))
+    styles.add(ParagraphStyle("SubC", parent=styles["Sub"], alignment=1))
     styles.add(ParagraphStyle("H2x", parent=styles["Heading2"], textColor=grass,
                               spaceBefore=14, spaceAfter=6))
     styles.add(ParagraphStyle("Small", parent=styles["Normal"], fontSize=8))
@@ -6167,20 +9585,32 @@ def export(result, config):
     doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=16 * mm,
                             rightMargin=16 * mm, topMargin=16 * mm,
                             bottomMargin=16 * mm,
-                            title="SCANFY dossier")
+                            title=f"{edition.product()} {title}",
+                            author=edition.full_name())
     story = []
-    story.append(Paragraph("SCANFY", styles["H1x"]))
-    story.append(Paragraph(f"network reconnaissance dossier · v{__version__}",
-                           styles["Sub"]))
+    story.append(Paragraph(edition.product(), styles["H1x"]))
+    badge = edition.spec()["badge"]
+    story.append(Paragraph(f"{title} · v{__version__}"
+                           + (f" · {badge}" if badge else ""),
+                           styles["SubC"]))
     story.append(Spacer(1, 8))
 
     meta_rows = [
-        ["Generated", m.generated, "Scan", f"{m.scan_type} ({m.profile})"],
-        ["Network", m.network, "Operator", f"{m.local_ip}"],
-        ["Gateway", m.gateway, "Duration", f"{m.duration}s"],
-        ["Methods", ", ".join(m.methods), "Engine", m.engine],
+        [T("generated"), i18n.fmt_ts(L, m.generated), T("scan"),
+         f"{m.scan_type} ({m.profile})"],
+        [T("network"), m.network, T("station") if m.client else T("operator"),
+         f"{m.local_ip}"],
+        [T("gateway"), m.gateway, T("duration"), f"{m.duration}s"],
+        [T("methods"), ", ".join(m.methods), T("engine"), m.engine],
     ]
-    mt = Table(meta_rows, colWidths=[26 * mm, 60 * mm, 26 * mm, 50 * mm])
+    eng = i18n.engagement_rows(L, m)
+    for i in range(0, len(eng), 2):
+        pair = eng[i:i + 2] + [("", "")] * (2 - len(eng[i:i + 2]))
+        meta_rows.insert(i // 2, [pair[0][0], pair[0][1], pair[1][0], pair[1][1]])
+    styles.add(ParagraphStyle("Lbl", parent=styles["Small"], textColor=grass_l))
+    meta_rows = [[Paragraph(str(c), styles["Lbl"] if i % 2 == 0 else styles["Small"])
+                  for i, c in enumerate(r)] for r in meta_rows]
+    mt = Table(meta_rows, colWidths=[28 * mm, 58 * mm, 28 * mm, 48 * mm])
     mt.setStyle(TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("TEXTCOLOR", (0, 0), (0, -1), grass_l),
@@ -6191,12 +9621,14 @@ def export(result, config):
     story.append(Spacer(1, 10))
 
     # summary
-    story.append(Paragraph("Executive summary", styles["H2x"]))
-    summ = [["Devices", str(len(result.devices)), "Risk grade",
+    story.append(Paragraph(T("exec_summary"), styles["H2x"]))
+    summ = [[T("devices"), str(len(result.devices)), T("risk_grade"),
              f"{result.risk_grade()} ({result.overall_risk_score()})"],
-            ["Critical", str(counts["critical"]), "High", str(counts["high"])],
-            ["Medium", str(counts["medium"]), "Low", str(counts["low"])],
-            ["Open ports", str(result.total_open_ports()), "Info",
+            [T("risk.critical"), str(counts["critical"]), T("risk.high"),
+             str(counts["high"])],
+            [T("risk.medium"), str(counts["medium"]), T("risk.low"),
+             str(counts["low"])],
+            [T("open_ports"), str(result.total_open_ports()), T("risk.info"),
              str(counts["info"])]]
     st = Table(summ, colWidths=[30 * mm, 40 * mm, 30 * mm, 40 * mm])
     st.setStyle(TableStyle([
@@ -6212,15 +9644,15 @@ def export(result, config):
     # findings
     all_f = result.all_findings()
     if all_f:
-        story.append(Paragraph(f"Security findings ({len(all_f)})", styles["H2x"]))
-        data = [["Sev", "Host", "Service", "Finding"]]
-        sev_bg = {"critical": "#3a1010", "high": "#3a2410", "medium": "#3a3510",
-                  "low": "#22301b", "info": "#1c2618"}
+        story.append(Paragraph(T("findings_n", n=len(all_f)), styles["H2x"]))
+        data = [[T("col_sev"), T("host"), T("service"), T("finding")]]
         for dev, f in all_f[:60]:
             svc = f"{f.port}/{f.service}" if f.port else "-"
-            data.append([f.severity.upper(), dev.ip, svc,
+            data.append([T("sev." + f.severity) if f.severity in
+                         ("critical", "high", "medium", "low", "info")
+                         else f.severity.upper(), dev.ip, svc,
                          Paragraph(f.title, styles["Small"])])
-        ft = Table(data, colWidths=[16 * mm, 26 * mm, 26 * mm, 94 * mm], repeatRows=1)
+        ft = Table(data, colWidths=[22 * mm, 26 * mm, 26 * mm, 88 * mm], repeatRows=1)
         style = [("FONTSIZE", (0, 0), (-1, -1), 7.5),
                  ("BACKGROUND", (0, 0), (-1, 0), grass),
                  ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -6229,14 +9661,14 @@ def export(result, config):
         for i, (dev, f) in enumerate(all_f[:60], start=1):
             style.append(("TEXTCOLOR", (0, i), (0, i),
                           colors.HexColor({"critical": "#cc0000", "high": "#cc6600",
-                                           "medium": "#999900", "low": "#4e9120",
+                                           "medium": "#999900", "low": pal["dark"],
                                            "info": "#777777"}.get(f.severity, "#333"))))
         ft.setStyle(TableStyle(style))
         story.append(ft)
 
     # inventory
-    story.append(Paragraph("Inventory", styles["H2x"]))
-    inv = [["IP", "Vendor", "Type", "OS", "Risk", "Ports"]]
+    story.append(Paragraph(T("inventory"), styles["H2x"]))
+    inv = [["IP", T("vendor"), T("type"), T("os"), T("risk"), T("ports")]]
     for d in result.devices:
         inv.append([d.ip, (d.vendor or "-")[:22], d.device_type[:20],
                     (d.os_guess or "-")[:18], str(d.risk_score),
@@ -6249,12 +9681,14 @@ def export(result, config):
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cccccc")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f2f6ee")]),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, zebra]),
     ]))
     story.append(it)
 
     story.append(Spacer(1, 16))
-    story.append(Paragraph(f"<b>{MOTTO_EN}</b> — {MOTTO_PT}", styles["Sub"]))
+    fl = edition.footer_lines() if edition.spec()["motto_en"] else [T("usage_pro")]
+    story.append(Paragraph(f"<b>{fl[0]}</b>" + (f" — {fl[1]}" if len(fl) > 1 else ""),
+                           styles["Sub"]))
 
     try:
         doc.build(story)
@@ -6264,13 +9698,401 @@ def export(result, config):
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.security
+# module: scanfyx.report.serious_pdf
 # ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.security'] = r'''"""Security analysis: findings, CVE correlation and risk scoring."""
+SCANFY_MODULES['scanfyx.report.serious_pdf'] = r'''"""
+Formal ("serious") PDF investigation dossier.
 
-from . import checks, cve, analyzer, scorecard
+A sober, professional report - white background, black text, grey details, no
+futuristic styling - suitable for filing or handing over. It states the date
+and time of the investigation, an executive summary, the device inventory, the
+security findings, a per-device breakdown and a final confidentiality / data
+protection notice: Brazilian LGPD clauses (classic/owner) or an international
+version naming the main data-protection laws (editions with legal="global").
 
-__all__ = ["checks", "cve", "analyzer", "scorecard"]
+The wording is localized (see ``report.i18n``): English by default, or any
+language the user picks at export time / in Settings / with ``--lang``.
+
+Requires reportlab; returns ``None`` if unavailable.
+"""
+
+from datetime import datetime
+
+from .. import constants, edition
+from ..version import __version__
+from ..security import scorecard as sc_mod
+from . import i18n
+from .common import report_path, latency_str
+
+
+SEV_HEX = {"critical": "#7a1616", "high": "#8a3b16", "medium": "#7a5f16",
+           "low": "#3f3f3f", "info": "#6b6b6b"}
+
+
+def available():
+    return constants.HAS_REPORTLAB
+
+
+def _clip(text, n):
+    text = str(text if text is not None else "-")
+    return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def _esc(text):
+    return (str(text if text is not None else "")
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def export(result, config, lang=None):
+    if not available():
+        return None
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                        Table, TableStyle, PageBreak,
+                                        HRFlowable, KeepTogether)
+    except Exception:
+        return None
+
+    L = i18n.normalize(lang) or i18n.resolve(config)
+
+    def T(key, **fmt):
+        return i18n.t(L, key, **fmt)
+
+    legal = edition.spec().get("legal", "lgpd")
+
+    def LT(key, **fmt):
+        """Legal wording: Brazilian LGPD clauses or the international version."""
+        return i18n.t(L, i18n.legal_key(key, legal), **fmt)
+
+    path = report_path(config, "pdf", kind="formal")
+    m = result.meta
+    pro = bool(m.client)
+    tool = edition.full_name()
+    # timestamps carry the UTC offset: reports may be read in another time zone
+    issued = "%s (%s)" % (i18n.now(L), i18n.utc_offset())
+    try:
+        gen_dt = datetime.strptime(m.generated, "%Y-%m-%d %H:%M:%S")
+        collected = "%s (%s)" % (i18n.fmt_ts(L, m.generated), i18n.utc_offset(gen_dt))
+    except (TypeError, ValueError):
+        collected = i18n.fmt_ts(L, m.generated)
+    report_id = (edition.product().replace(" ", "-") + "-"
+                 + datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+    # ---- sober palette ---------------------------------------------------
+    BLACK = colors.HexColor("#111111")
+    GREY = colors.HexColor("#666666")
+    LGREY = colors.HexColor("#f4f4f4")
+    GRID = colors.HexColor("#cccccc")
+    HEADBG = colors.HexColor("#3a3a3a")
+    RULE = colors.HexColor("#333333")
+
+    ss = getSampleStyleSheet()
+    S = {
+        "title": ParagraphStyle("t", parent=ss["Title"], textColor=BLACK,
+                                fontName="Helvetica-Bold", fontSize=22,
+                                alignment=TA_CENTER, spaceAfter=4, leading=26),
+        "subtitle": ParagraphStyle("st", parent=ss["Normal"], textColor=GREY,
+                                   fontSize=11, alignment=TA_CENTER),
+        "h2": ParagraphStyle("h2", parent=ss["Heading2"], textColor=BLACK,
+                             fontName="Helvetica-Bold", fontSize=13,
+                             spaceBefore=14, spaceAfter=4),
+        "h3": ParagraphStyle("h3", parent=ss["Heading3"], textColor=BLACK,
+                             fontName="Helvetica-Bold", fontSize=10.5,
+                             spaceBefore=8, spaceAfter=2),
+        "body": ParagraphStyle("b", parent=ss["Normal"], textColor=BLACK,
+                               fontSize=9.5, leading=14, alignment=TA_JUSTIFY),
+        "smallg": ParagraphStyle("sg", parent=ss["Normal"], textColor=GREY,
+                                 fontSize=8, leading=11),
+        "cell": ParagraphStyle("c", parent=ss["Normal"], textColor=BLACK,
+                               fontSize=8, leading=10),
+        "cellg": ParagraphStyle("cg", parent=ss["Normal"], textColor=GREY,
+                                fontSize=8, leading=10),
+        "notice": ParagraphStyle("n", parent=ss["Normal"], textColor=BLACK,
+                                 fontSize=9, leading=14, alignment=TA_JUSTIFY,
+                                 spaceAfter=8),
+    }
+
+    def rule(width="100%", thickness=0.8, color=RULE, space=6):
+        return HRFlowable(width=width, thickness=thickness, color=color,
+                          spaceBefore=space, spaceAfter=space)
+
+    def table_style(fontsize=8):
+        return TableStyle([
+            ("FONTSIZE", (0, 0), (-1, -1), fontsize),
+            ("BACKGROUND", (0, 0), (-1, 0), HEADBG),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.4, GRID),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LGREY]),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ])
+
+    def sev(s):
+        return T("sev." + s) if s in ("critical", "high", "medium", "low", "info") \
+            else str(s).upper()
+
+    counts = result.severity_counts()
+    sc = sc_mod.build(result)
+    story = []
+
+    # ================= COVER =================
+    story += [Spacer(1, 40 * mm),
+              Paragraph(T("f.title_pro") if pro else T("f.title"), S["title"]),
+              Paragraph(T("f.subtitle_client", client=_esc(m.client)) if pro
+                        else T("f.subtitle"), S["subtitle"]),
+              Spacer(1, 4 * mm), rule(width="60%", color=GREY, thickness=0.6),
+              Spacer(1, 8 * mm)]
+    cover = [
+        [T("f.report_id"), report_id],
+        [T("f.collected_at"), collected],
+        [T("f.issued_at"), issued],
+        [T("f.network_analyzed"), m.network],
+        [T("f.operator_station"), f"{m.local_ip}  ({m.hostname})"],
+        [T("f.devices_identified"), str(len(result.devices))],
+        [T("f.tool_used"), f"{tool} v{__version__}"],
+    ]
+    if pro:
+        cover[1:1] = [[T("f.client_org"), m.client],
+                      [T("f.tech_lead"), m.operator],
+                      [T("f.auth_ref"), m.auth_ref],
+                      [T("f.auth_scope"), ", ".join(m.scope) or "-"]]
+    elif m.owner:
+        cover.insert(1, [T("f.network_owner"), m.owner])
+    ct = Table(cover, colWidths=[62 * mm, 96 * mm])
+    ct.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+        ("TEXTCOLOR", (0, 0), (0, -1), GREY),
+        ("TEXTCOLOR", (1, 0), (1, -1), BLACK),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, GRID),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story += [ct, Spacer(1, 14 * mm), rule(color=GRID, thickness=0.5),
+              Paragraph(LT("f.conf_notice"), S["smallg"]),
+              PageBreak()]
+
+    # ================= 1. INVESTIGATION =================
+    story += [Paragraph(T("f.s1"), S["h2"]), rule()]
+    info = [
+        [T("f.collected"), collected, T("duration"), f"{m.duration} s"],
+        [T("f.network_analyzed"), m.network, T("f.scan_profile"), m.scan_type],
+        [T("operator"), m.operator or m.local_ip, T("gateway"), m.gateway],
+        [T("f.dns"), ", ".join(m.dns) if m.dns else "-", T("devices"),
+         str(len(result.devices))],
+        [T("f.kv_methods"), ", ".join(m.methods), T("engine"), m.engine],
+    ]
+    # Paragraph cells so long localized labels wrap instead of overflowing
+    it = Table([[Paragraph(_esc(c), S["cellg"] if i % 2 == 0 else S["cell"])
+                 for i, c in enumerate(row)] for row in info],
+               colWidths=[34 * mm, 62 * mm, 30 * mm, 32 * mm])
+    it.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("TEXTCOLOR", (0, 0), (0, -1), GREY),
+        ("TEXTCOLOR", (2, 0), (2, -1), GREY),
+        ("GRID", (0, 0), (-1, -1), 0.4, GRID),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(it)
+
+    # ================= 2. EXECUTIVE SUMMARY =================
+    story += [Paragraph(T("f.s2"), S["h2"]), rule()]
+    story.append(Paragraph(T("f.summary", n=len(result.devices), network=_esc(m.network),
+                             grade=sc["grade"], score=sc["score"],
+                             c=counts["critical"], h=counts["high"],
+                             m=counts["medium"], l=counts["low"]), S["body"]))
+    story.append(Spacer(1, 3 * mm))
+    summ = [[T("f.severity"), T("f.quantity")]]
+    for s in ("critical", "high", "medium", "low", "info"):
+        summ.append([T("risk." + s), str(counts[s])])
+    stt = Table(summ, colWidths=[50 * mm, 30 * mm])
+    stt.setStyle(table_style(9))
+    story.append(stt)
+
+    top = [d for d in result.riskiest(5) if d.risk_score > 0]
+    if top:
+        story.append(Paragraph(T("f.top_risk"), S["h3"]))
+        rows = [["IP", T("type"), T("f.col_index"), T("f.col_findings")]]
+        for d in top:
+            rows.append([d.ip, _clip(d.device_type, 28), f"{d.risk_score:g}",
+                         str(len(d.findings))])
+        rt = Table(rows, colWidths=[34 * mm, 62 * mm, 24 * mm, 24 * mm])
+        rt.setStyle(table_style())
+        story.append(rt)
+
+    # ================= 3. INVENTORY =================
+    story += [Paragraph(T("f.s3"), S["h2"]), rule()]
+    inv = [["IP", "MAC", T("vendor"), T("f.col_name"), T("type"), T("risk")]]
+    for d in result.devices:
+        inv.append([d.ip, d.mac, _clip(d.vendor, 22), _clip(d.best_name(), 20),
+                    _clip(d.device_type, 20), f"{d.risk_score:g}"])
+    invt = Table(inv, colWidths=[26 * mm, 32 * mm, 34 * mm, 32 * mm, 30 * mm, 14 * mm],
+                 repeatRows=1)
+    invt.setStyle(table_style(7.5))
+    story.append(invt)
+
+    # ================= 4. FINDINGS =================
+    story += [Paragraph(T("f.s4"), S["h2"]), rule()]
+    all_f = result.all_findings()
+    if not all_f:
+        story.append(Paragraph(T("f.none"), S["body"]))
+    else:
+        data = [[T("col_sev"), T("host"), T("service"), T("f.col_finding_rec")]]
+        for dev, f in all_f:
+            svc = f"{f.port}/{f.service}" if f.port else "-"
+            desc = Paragraph(
+                f"<b>{_esc(f.title)}</b><br/>"
+                f"<font color='#666666'>{_esc(f.recommendation)}</font>", S["cell"])
+            data.append([sev(f.severity), dev.ip, svc, desc])
+        ft = Table(data, colWidths=[20 * mm, 26 * mm, 26 * mm, 96 * mm], repeatRows=1)
+        style = table_style(7.5)
+        for i, (dev, f) in enumerate(all_f, start=1):
+            style.add("TEXTCOLOR", (0, i), (0, i), colors.HexColor(SEV_HEX.get(f.severity, "#111111")))
+            style.add("FONTNAME", (0, i), (0, i), "Helvetica-Bold")
+        ft.setStyle(style)
+        story.append(ft)
+
+        if sc["remediation"]:
+            story.append(Paragraph(T("f.remediation"), S["h3"]))
+            rem = [[T("f.col_priority"), T("f.col_action"), T("f.col_hosts")]]
+            for r in sc["remediation"][:14]:
+                rem.append([sev(r["severity"]),
+                            Paragraph(_esc(r["recommendation"]), S["cell"]),
+                            str(r["host_count"])])
+            rmt = Table(rem, colWidths=[24 * mm, 120 * mm, 18 * mm], repeatRows=1)
+            rmt.setStyle(table_style(8))
+            story.append(rmt)
+
+    # ================= 5. PER-DEVICE DETAIL =================
+    story += [PageBreak(), Paragraph(T("f.s5"), S["h2"]), rule()]
+    for d in result.devices:
+        story += _device_block(d, T, sev, S, colors, mm, GREY, BLACK, GRID,
+                               table_style, Table, TableStyle, Paragraph, Spacer,
+                               HRFlowable, KeepTogether)
+
+    # ================= FINAL: CONFIDENTIALITY / LGPD =================
+    story += [PageBreak(), Paragraph(T("f.conf_title"), S["h2"]), rule()]
+    for para in _confidentiality_paragraphs(LT, m, report_id, collected, issued, tool):
+        story.append(Paragraph(para, S["notice"]))
+    story.append(Spacer(1, 10 * mm))
+    sign = [[T("f.sign_resp"),
+             (_esc(m.operator) + "   ") if m.operator else "_______________________________"],
+            [T("f.sign_sig"), "_______________________________"],
+            [T("f.sign_date"), T("f.date_blank")]]
+    sgt = Table(sign, colWidths=[70 * mm, 88 * mm])
+    sgt.setStyle(TableStyle([("FONTSIZE", (0, 0), (-1, -1), 9),
+                             ("TEXTCOLOR", (0, 0), (0, -1), GREY),
+                             ("TOPPADDING", (0, 0), (-1, -1), 12)]))
+    story.append(sgt)
+
+    # ---- header/footer on every page ----
+    foot_left = T("f.foot_client", client=_clip(m.client, 40)) if pro else T("f.foot")
+
+    def _decorate(canvas, doc):
+        canvas.saveState()
+        w, h = A4
+        canvas.setStrokeColor(GRID)
+        canvas.setLineWidth(0.4)
+        canvas.line(16 * mm, 14 * mm, w - 16 * mm, 14 * mm)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(GREY)
+        canvas.drawString(16 * mm, 10 * mm, foot_left)
+        canvas.drawCentredString(w / 2.0, 10 * mm, report_id)
+        canvas.drawRightString(w - 16 * mm, 10 * mm, T("f.page", n=doc.page))
+        canvas.restoreState()
+
+    doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=16 * mm,
+                            rightMargin=16 * mm, topMargin=18 * mm,
+                            bottomMargin=20 * mm,
+                            title=T("f.doc_title", x=m.client or tool),
+                            author=m.operator or tool)
+    try:
+        doc.build(story, onFirstPage=_decorate, onLaterPages=_decorate)
+        return path
+    except Exception:
+        return None
+
+
+def _device_block(d, T, sev, S, colors, mm, GREY, BLACK, GRID,
+                  table_style, Table, TableStyle, Paragraph, Spacer,
+                  HRFlowable, KeepTogether):
+    tagged = ("  " + T("f.tag_operator")) if d.is_self else \
+        (("  " + T("f.tag_gateway")) if d.is_gateway else "")
+    head = [
+        Paragraph(f"{_esc(d.ip)}{_esc(tagged)} — {_esc(d.device_type)}", S["h3"]),
+        HRFlowable(width="100%", thickness=0.4, color=GRID, spaceBefore=2, spaceAfter=4),
+    ]
+    kv = [
+        [T("f.kv_mac"), f"{d.mac}  —  {_clip(d.vendor, 30)}"],
+        [T("f.kv_host"), d.best_name()],
+        [T("f.kv_netbios"), f"{d.netbios} / {d.workgroup}"],
+        [T("f.kv_os"), f"{d.os_guess}  {d.os_confidence}"],
+        [T("f.kv_latency"), latency_str(d.latency_ms)],
+        [T("f.kv_methods"), "+".join(d.discovery_methods)],
+        [T("f.kv_risk"), f"{d.risk_score:g}  ({T('risk.' + d.risk_label) if d.risk_label in ('critical', 'high', 'medium', 'low', 'info') else d.risk_label})"],
+    ]
+    kt = Table(kv, colWidths=[42 * mm, 116 * mm])
+    kt.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("TEXTCOLOR", (0, 0), (0, -1), GREY),
+        ("TEXTCOLOR", (1, 0), (1, -1), BLACK),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.3, GRID),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    # keep the header + identity together
+    flow = [KeepTogether(head + [kt])]
+
+    if d.ports:
+        flow.append(Spacer(1, 2 * mm))
+        prows = [[T("f.col_port"), T("service"), T("f.col_product"), T("f.col_banner")]]
+        for p in sorted(d.ports, key=lambda x: x.port):
+            prod = " ".join(filter(None, [p.product, p.version]))
+            prows.append([f"{p.port}/{p.protocol}", _clip(p.service, 18),
+                          _clip(prod, 26), _clip(p.banner, 34)])
+        pt = Table(prows, colWidths=[20 * mm, 34 * mm, 50 * mm, 54 * mm], repeatRows=1)
+        pt.setStyle(table_style(7))
+        flow.append(pt)
+
+    if d.findings:
+        flow.append(Spacer(1, 2 * mm))
+        for f in d.findings:
+            cve = (" [" + ", ".join(f.cves) + "]") if f.cves else ""
+            flow.append(Paragraph(
+                f"<font color='{SEV_HEX.get(f.severity, '#111111')}'>"
+                f"<b>{_esc(sev(f.severity))}</b></font> — "
+                f"{_esc(f.title)}{_esc(cve)}. "
+                f"<font color='#666666'>{_esc(f.recommendation)}</font>", S["cell"]))
+    flow.append(Spacer(1, 5 * mm))
+    return flow
+
+
+def _confidentiality_paragraphs(T, meta, report_id, collected, issued, tool="SCANFY"):
+    if meta.client:
+        basis = T("f.basis_pro", client=_esc(meta.client), auth_ref=_esc(meta.auth_ref),
+                  scope=_esc(", ".join(meta.scope)))
+    else:
+        basis = T("f.basis_owner")
+    return [
+        T("f.p1"),
+        T("f.p2"),
+        T("f.p3", basis=basis),
+        T("f.p4"),
+        T("f.p5", tool=_esc(tool)),
+        T("f.p6"),
+        T("f.p7", generated=_esc(collected)),
+        f"<b>{T('f.id_label')}:</b> {report_id} &nbsp;&nbsp; "
+        f"<b>{T('f.collect_label')}:</b> {_esc(collected)} &nbsp;&nbsp; "
+        f"<b>{T('f.issue_label')}:</b> {issued}",
+    ]
 '''
 
 # ---------------------------------------------------------------------------
@@ -6287,6 +10109,7 @@ resulting findings, sorts them by severity and computes a per-device risk score
 from ..constants import SEVERITY_WEIGHT, severity_rank
 from ..logging_setup import get_logger
 from . import checks, cve
+from . import kev as kev_mod
 
 log = get_logger("security")
 
@@ -6328,7 +10151,13 @@ def _risk_label(score, findings):
     return "info"
 
 
-def analyze_device(device):
+def analyze_device(device, kev=None):
+    """
+    Run every check + CVE correlation against ``device``. When a loaded
+    :class:`~scanfyx.security.kev.KevCatalog` is passed as ``kev``, findings
+    whose CVEs are known-exploited are escalated *before* scoring, so the risk
+    score and grade reflect that they are actively exploited in the wild.
+    """
     findings = []
     for check in checks.ALL_CHECKS:
         try:
@@ -6341,6 +10170,11 @@ def analyze_device(device):
         log.debug("cve correlate failed on %s: %s", device.ip, exc)
 
     findings = _dedupe(findings)
+    if kev:
+        try:
+            kev_mod.escalate(findings, kev, device)
+        except Exception as exc:
+            log.debug("kev escalate failed on %s: %s", device.ip, exc)
     findings.sort(key=lambda f: severity_rank(f.severity))
     device.findings = findings
     device.risk_score = _risk_score(findings)
@@ -6348,9 +10182,9 @@ def analyze_device(device):
     return device
 
 
-def analyze(devices):
+def analyze(devices, kev=None):
     for d in devices:
-        analyze_device(d)
+        analyze_device(d, kev=kev)
     return devices
 
 
@@ -6382,6 +10216,8 @@ Each function inspects one aspect of a device and yields zero or more
 :class:`Finding` objects. The analyzer runs them all. Checks are deliberately
 conservative and explain *why* something matters plus *how* to remediate.
 """
+
+import re
 
 from ..data import vuln_db
 from ..data.services import service_name
@@ -6546,14 +10382,8 @@ def check_plaintext_protocols(device):
     """Emphasise cleartext protocols carrying credentials."""
     out = []
     ports = device.port_set()
-    cleartext = {21: "FTP", 23: "Telnet", 80: "HTTP (if used for auth)",
-                 110: "POP3", 143: "IMAP", 143: "IMAP"}
-    present = [p for p in (21, 23, 110, 143) if p in ports]
-    if 23 in present:
-        pass  # already covered by exposed-service (high)
-    if 21 in present:
-        pass  # covered by exposed-service
-    # POP3/IMAP without TLS counterparts
+    # Telnet (23) and FTP (21) are already covered by check_exposed_services at a
+    # higher severity; here we only flag POP3/IMAP offered without a TLS variant.
     if 110 in ports and 995 not in ports:
         out.append(Finding(severity="low", category="protocol",
                             title="POP3 without POP3S",
@@ -6657,6 +10487,72 @@ def check_service_probes(device):
     return out
 
 
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
+
+
+def _finding_from_nse(script_id, output, port):
+    """Turn one NSE script result into a Finding when it reports a problem."""
+    if not output:
+        return None
+    low = output.lower()
+    sid = script_id or "nse"
+    # A vuln-category script that concluded the target IS vulnerable.
+    if "state: vulnerable" in low or ("vulnerable" in low and "not vulnerable" not in low):
+        cves = sorted({c.upper() for c in _CVE_RE.findall(output)})
+        severity = "critical" if cves else "high"
+        return Finding(
+            severity=severity, category="cve",
+            title="nmap NSE flagged '%s' as VULNERABLE" % sid,
+            description=output.strip()[:400],
+            recommendation="Confirm the exposure and patch the affected service; "
+                           "nmap's NSE engine reported it as vulnerable.",
+            port=port, service=sid, cves=cves,
+            evidence=output.strip()[:200])
+    return None
+
+
+def check_nmap_scripts(device):
+    """Convert nmap NSE script output (host + port level) into findings."""
+    out = []
+    nd = device.services_detail.get("nmap") or {}
+    for s in nd.get("hostscripts", []):
+        f = _finding_from_nse(s.get("id", ""), s.get("output", ""), None)
+        if f:
+            out.append(f)
+    for pr in device.ports:
+        scripts = (pr.extra or {}).get("nmap_scripts") or {}
+        for sid, output in scripts.items():
+            f = _finding_from_nse(sid, output, pr.port)
+            if f:
+                out.append(f)
+    return out
+
+
+def check_nvd_cves(device):
+    """
+    Turn NVD CPE->CVE lookups (produced by security/nvd.py when the optional
+    online enrichment is enabled) into findings. Reads only what the enrich pass
+    stashed in ``services_detail`` - no network here - so it is safe to keep in
+    the default check list (it yields nothing when the feature is off).
+    """
+    out = []
+    rows = device.services_detail.get("nvd_cves") or []
+    for r in rows[:12]:
+        sev = r.get("severity") or "info"
+        if sev in ("info", "low"):
+            continue  # only surface medium+ to keep the signal-to-noise high
+        cve = r.get("cve", "")
+        score = r.get("cvss")
+        out.append(Finding(
+            severity=sev, category="cve",
+            title="NVD: %s (CVSS %s)" % (cve, score if score is not None else "?"),
+            description=(r.get("description") or "").strip()[:300],
+            recommendation="Confirm the exact running version and patch if affected.",
+            port=None, service=r.get("cpe", ""),
+            cves=[cve] if cve else [], evidence=r.get("cpe", "")))
+    return out
+
+
 ALL_CHECKS = [
     check_exposed_services,
     check_service_probes,
@@ -6667,6 +10563,8 @@ ALL_CHECKS = [
     check_upnp,
     check_plaintext_protocols,
     check_randomized_mac,
+    check_nmap_scripts,
+    check_nvd_cves,
 ]
 '''
 
@@ -6726,6 +10624,446 @@ def correlate(device):
                 port=port, service=service, cves=cve_list,
                 evidence=text[:160]))
     return findings
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.security.kev
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.security.kev'] = r'''"""
+CISA Known Exploited Vulnerabilities (KEV) catalog integration.
+
+The KEV catalog is CISA's authoritative list of CVEs that are *known to be
+exploited in the wild*. Cross-referencing SCANFY's CVE findings against it is
+the single strongest prioritisation signal available: a vulnerability on this
+list is not theoretical - attackers are using it right now, which is exactly why
+US federal agencies are legally bound (BOD 22-01) to patch KEV entries first.
+
+The catalog is one public JSON file - no API key, no rate limit. SCANFY caches
+it under ~/.scanfy/cache/cisa_kev.json and refreshes it at most once a week.
+Everything here degrades silently: with no cache and no network, KEV enrichment
+is simply skipped and scans behave exactly as before.
+
+Source: https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+"""
+
+import json
+import os
+import time
+
+from .. import constants
+from ..constants import severity_rank
+from ..logging_setup import get_logger
+from ..utils import webfetch
+
+log = get_logger("security.kev")
+
+KEV_URL = ("https://www.cisa.gov/sites/default/files/feeds/"
+           "known_exploited_vulnerabilities.json")
+CACHE_PATH = os.path.join(constants.CACHE_DIR, "cisa_kev.json")
+DEFAULT_MAX_AGE_DAYS = 7
+
+
+class KevCatalog:
+    """An in-memory view of the KEV catalog keyed by (upper-cased) CVE id."""
+
+    def __init__(self, entries=None, meta=None):
+        self.by_cve = entries or {}
+        self.meta = meta or {}
+
+    def get(self, cve):
+        if not cve:
+            return None
+        return self.by_cve.get(str(cve).upper().strip())
+
+    def __contains__(self, cve):
+        return self.get(cve) is not None
+
+    def __len__(self):
+        return len(self.by_cve)
+
+    def __bool__(self):
+        return bool(self.by_cve)
+
+
+def _parse(raw):
+    """Parse the CISA KEV JSON document into ({CVE: entry}, meta)."""
+    entries = {}
+    for v in (raw or {}).get("vulnerabilities") or []:
+        cid = str(v.get("cveID", "")).upper().strip()
+        if not cid:
+            continue
+        entries[cid] = {
+            "cve": cid,
+            "name": v.get("vulnerabilityName", ""),
+            "vendor": v.get("vendorProject", ""),
+            "product": v.get("product", ""),
+            "date_added": v.get("dateAdded", ""),
+            "due_date": v.get("dueDate", ""),
+            "ransomware": str(v.get("knownRansomwareCampaignUse", "")
+                              ).strip().lower() == "known",
+            "description": v.get("shortDescription", ""),
+            "action": v.get("requiredAction", ""),
+        }
+    meta = {
+        "catalog_version": (raw or {}).get("catalogVersion", ""),
+        "date_released": (raw or {}).get("dateReleased", ""),
+        "count": (raw or {}).get("count", len(entries)),
+    }
+    return entries, meta
+
+
+def _read_cache(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _cache_age_days(path):
+    try:
+        return (time.time() - os.path.getmtime(path)) / 86400.0
+    except Exception:
+        return None
+
+
+def _write_cache(path, raw_bytes):
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(raw_bytes)
+        os.replace(tmp, path)
+        return True
+    except Exception as exc:
+        log.debug("kev cache write failed: %s", exc)
+        return False
+
+
+def load(path=None, max_age_days=DEFAULT_MAX_AGE_DAYS, allow_download=True,
+         timeout=8.0, force=False):
+    """
+    Load the KEV catalog (cache-first). Downloads a fresh copy only when the
+    cache is missing or older than ``max_age_days`` (or ``force``). Never raises;
+    returns an empty :class:`KevCatalog` when nothing is available.
+    """
+    path = path or CACHE_PATH
+    age = _cache_age_days(path)
+    have_cache = age is not None
+    stale = (age is None) or (age > max_age_days)
+
+    raw = None
+    if allow_download and (force or stale):
+        data = webfetch.fetch_bytes(KEV_URL, timeout=timeout)
+        if data:
+            try:
+                raw = json.loads(data.decode("utf-8", "replace"))
+                _write_cache(path, data)
+                log.info("kev catalog downloaded: %s entries",
+                         raw.get("count", "?"))
+            except Exception as exc:
+                log.debug("kev parse (download) failed: %s", exc)
+                raw = None
+
+    if raw is None and have_cache:
+        raw = _read_cache(path)
+        if raw is not None:
+            log.debug("kev catalog loaded from cache (age %.1fd)", age or 0.0)
+
+    if raw is None:
+        return KevCatalog()
+    entries, meta = _parse(raw)
+    return KevCatalog(entries, meta)
+
+
+_STATUS = {}
+
+
+def cache_status(path=None):
+    """
+    Cheap status of the local KEV cache for dashboards: ``{"count", "age_days"}``
+    or None when there is no cache. The catalog is only re-read when the file's
+    mtime changes, so calling this on every menu redraw is fine.
+    """
+    path = path or CACHE_PATH
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return None
+    if _STATUS.get("path") != path or _STATUS.get("mtime") != mtime:
+        raw = _read_cache(path) or {}
+        _STATUS.update(path=path, mtime=mtime,
+                       count=len(raw.get("vulnerabilities") or []))
+    return {"count": _STATUS["count"],
+            "age_days": max(0.0, (time.time() - mtime) / 86400.0)}
+
+
+_KEV_NOTE = "Listed in CISA KEV (known exploited in the wild)"
+
+
+def escalate(findings, catalog, device=None):
+    """
+    Raise every finding whose CVE(s) appear in the KEV catalog to 'critical' and
+    annotate it with the exploitation context (ransomware link, CISA due date).
+    Mutates the findings in place; returns the ordered list of KEV CVE ids
+    matched. Safe to call with an empty/None catalog (returns []).
+    """
+    if not catalog or not findings:
+        return []
+    hits = []
+    for f in findings:
+        cves = getattr(f, "cves", None)
+        if not cves:
+            continue
+        matched = [c for c in cves if catalog.get(c)]
+        if not matched:
+            continue
+        hits.extend(matched)
+        # Known-exploited is never "medium" - pin it to critical.
+        if severity_rank(f.severity) > severity_rank("critical"):
+            f.severity = "critical"
+        if not f.title.startswith("[KEV]"):
+            f.title = "[KEV] " + f.title
+        f.category = "cve"
+        ents = [catalog.get(c) for c in matched]
+        ransom = any(e.get("ransomware") for e in ents if e)
+        dues = sorted({e.get("due_date", "") for e in ents
+                       if e and e.get("due_date")})
+        note = _KEV_NOTE
+        if ransom:
+            note += "; linked to ransomware campaigns"
+        if dues:
+            note += "; CISA remediation due " + ", ".join(dues)
+        f.description = ((f.description + " ") if f.description else "") + note + "."
+        if "actively exploited" not in (f.recommendation or "").lower():
+            f.recommendation = (((f.recommendation + " ")
+                                 if f.recommendation else "")
+                                + "Prioritise remediation: this CVE is actively "
+                                  "exploited (CISA KEV).")
+    if hits and device is not None:
+        try:
+            device.add_tag("kev")
+            lst = device.services_detail.setdefault("kev", [])
+            for c in hits:
+                if c not in lst:
+                    lst.append(c)
+        except Exception:
+            pass
+    seen = set()
+    out = []
+    for c in hits:
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+'''
+
+# ---------------------------------------------------------------------------
+# module: scanfyx.security.nvd
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.security.nvd'] = r'''"""
+NVD API 2.0 CPE -> CVE enrichment (optional, online).
+
+When nmap service/version detection runs it emits CPE identifiers for the
+software it recognises (e.g. ``cpe:/a:openbsd:openssh:7.4``). SCANFY already
+captures those CPEs but, historically, only displayed them. This module turns
+them into concrete CVEs with CVSS scores by querying the NVD 2.0 REST API.
+
+It is strictly opt-in (``config.cve_online``): it needs network access and NVD
+rate-limits callers (5 requests / 30 s anonymously, 50 with a free API key).
+SCANFY honours those limits with its own token-bucket ``RateLimiter`` and caches
+every CPE lookup under ~/.scanfy/cache/nvd/. With no network it degrades to a
+no-op. Results are attached to ``device.services_detail['nvd_cves']``; the
+``checks.check_nvd_cves`` check turns them into findings so KEV escalation and
+the scorecard pick them up like any other CVE finding.
+
+Docs: https://nvd.nist.gov/developers/vulnerabilities
+"""
+
+import hashlib
+import json
+import os
+import time
+
+from .. import constants
+from ..logging_setup import get_logger
+from ..utils import webfetch
+from ..utils.concurrency import RateLimiter
+
+log = get_logger("security.nvd")
+
+NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+CACHE_DIR = os.path.join(constants.CACHE_DIR, "nvd")
+CACHE_TTL_DAYS = 7
+
+_SEV_MAP = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium",
+            "LOW": "low", "NONE": "info"}
+
+
+def cpe22_to_23(cpe):
+    """
+    Convert a CPE 2.2 URI (``cpe:/a:vendor:product:version...``) to a CPE 2.3
+    formatted string. Strings already in 2.3 form are returned unchanged.
+    Returns None for anything that is not a usable CPE.
+    """
+    if not cpe or not isinstance(cpe, str):
+        return None
+    cpe = cpe.strip()
+    low = cpe.lower()
+    if low.startswith("cpe:2.3:"):
+        return cpe
+    if not low.startswith("cpe:/"):
+        return None
+    parts = cpe[5:].split(":")            # part,vendor,product,version,update,edition,lang
+    while len(parts) < 7:
+        parts.append("")
+    part = parts[0] or "*"
+    vendor, product, version, update, edition, lang = \
+        [p if p else "*" for p in parts[1:7]]
+    comps = [part, vendor, product, version, update, edition, lang,
+             "*", "*", "*", "*"]
+    return "cpe:2.3:" + ":".join(comps)
+
+
+def _cache_path(cpe23):
+    h = hashlib.sha1(cpe23.encode("utf-8")).hexdigest()[:16]
+    return os.path.join(CACHE_DIR, h + ".json")
+
+
+def _read_cache(path):
+    try:
+        if (time.time() - os.path.getmtime(path)) / 86400.0 > CACHE_TTL_DAYS:
+            return None
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _write_cache(path, obj):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(obj, f)
+    except Exception:
+        pass
+
+
+def _cvss_of(cve):
+    """Extract (base_score, severity_label) from an NVD 2.0 cve object."""
+    metrics = cve.get("metrics") or {}
+    for key in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+        arr = metrics.get(key) or []
+        if arr:
+            data = arr[0].get("cvssData", {}) or {}
+            score = data.get("baseScore")
+            sev = (data.get("baseSeverity") or arr[0].get("baseSeverity")
+                   or "").upper()
+            return score, sev
+    return None, ""
+
+
+def _english(cve):
+    for d in cve.get("descriptions", []) or []:
+        if d.get("lang") == "en":
+            return d.get("value", "")
+    return ""
+
+
+def parse_response(payload, max_items=8):
+    """
+    Turn an NVD 2.0 JSON response into a compact, CVSS-sorted list of dicts:
+    ``{cve, cvss, severity, description}``. Pure function - unit tested offline.
+    """
+    out = []
+    for item in (payload or {}).get("vulnerabilities", []) or []:
+        cve = item.get("cve") or {}
+        cid = cve.get("id", "")
+        if not cid:
+            continue
+        score, nvd_sev = _cvss_of(cve)
+        sev = _SEV_MAP.get(nvd_sev, "")
+        if not sev:
+            try:
+                s = float(score)
+                sev = ("critical" if s >= 9 else "high" if s >= 7
+                       else "medium" if s >= 4 else "low" if s > 0 else "info")
+            except (TypeError, ValueError):
+                sev = "info"
+        out.append({"cve": cid, "cvss": score, "severity": sev,
+                    "description": _english(cve)[:300]})
+    out.sort(key=lambda x: (x["cvss"] is None, -(x["cvss"] or 0)))
+    return out[:max_items]
+
+
+def query_cpe(cpe, api_key=None, limiter=None, timeout=20.0, use_cache=True):
+    """Look up CVEs for a single CPE via NVD 2.0. Returns a parsed list or []."""
+    cpe23 = cpe22_to_23(cpe)
+    if not cpe23:
+        return []
+    cache_file = _cache_path(cpe23)
+    if use_cache:
+        cached = _read_cache(cache_file)
+        if cached is not None:
+            return cached
+    headers = {}
+    if api_key:
+        headers["apiKey"] = api_key
+    if limiter is not None:
+        try:
+            limiter.acquire()
+        except Exception:
+            pass
+    payload = webfetch.fetch_json(
+        NVD_URL, timeout=timeout, headers=headers,
+        params={"virtualMatchString": cpe23, "resultsPerPage": 50})
+    if payload is None:
+        return []
+    parsed = parse_response(payload)
+    if use_cache:
+        _write_cache(cache_file, parsed)
+    return parsed
+
+
+def _device_cpes(device):
+    cpes = set()
+    nd = device.services_detail.get("nmap") or {}
+    for c in nd.get("cpes", []) or []:
+        cpes.add(c)
+    for pr in device.ports:
+        for c in (pr.extra or {}).get("cpe", []) or []:
+            cpes.add(c)
+    return sorted(c for c in cpes if (c or "").lower().startswith("cpe:"))
+
+
+def enrich(devices, config, progress=None):
+    """
+    Query NVD for every device CPE and stash results in
+    ``device.services_detail['nvd_cves']`` for ``checks.check_nvd_cves`` to turn
+    into findings. Rate-limited + cached; a no-op when no CPEs or no network.
+    """
+    api_key = getattr(config, "nvd_api_key", "") or None
+    rate_per_30s = 45 if api_key else 4      # safety margin under NVD's limits
+    limiter = RateLimiter(rate_per_30s / 30.0)
+
+    targets = [(d, _device_cpes(d)) for d in devices]
+    targets = [(d, cs) for (d, cs) in targets if cs]
+    if not targets:
+        return
+    if progress:
+        progress.phase("NVD CVE lookup (%d hosts)" % len(targets), len(targets))
+    for dev, cpes in targets:
+        found = {}
+        for cpe in cpes[:12]:
+            for row in query_cpe(cpe, api_key=api_key, limiter=limiter):
+                row = dict(row)
+                row["cpe"] = cpe
+                found[row["cve"]] = row
+        if found:
+            dev.services_detail["nvd_cves"] = sorted(
+                found.values(),
+                key=lambda x: (x.get("cvss") is None, -(x.get("cvss") or 0)))
+        if progress:
+            progress.step()
 '''
 
 # ---------------------------------------------------------------------------
@@ -6876,289 +11214,61 @@ def text_summary(scorecard):
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.storage
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.storage'] = r'''"""
-Scan history storage and diffing (SQLite).
-
-Every completed scan can be persisted to ``~/.scanfy/scanfy_history.sqlite3``.
-Two scans of the same network can then be diffed to reveal *new* devices,
-*disappeared* devices and hosts whose open-port set or risk changed - the basis
-for the monitor mode and for tracking a network over time.
-"""
-
-import json
-import sqlite3
-import time
-
-from . import constants
-from .logging_setup import get_logger
-from .models import now_str
-
-log = get_logger("storage")
-
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS scans (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts TEXT NOT NULL,
-    network TEXT,
-    scan_type TEXT,
-    device_count INTEGER,
-    risk_grade TEXT,
-    meta_json TEXT
-);
-CREATE TABLE IF NOT EXISTS devices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    scan_id INTEGER NOT NULL,
-    ip TEXT, mac TEXT, vendor TEXT, hostname TEXT,
-    device_type TEXT, os_guess TEXT, risk_score REAL,
-    open_ports TEXT, findings INTEGER,
-    device_json TEXT,
-    FOREIGN KEY(scan_id) REFERENCES scans(id)
-);
-CREATE INDEX IF NOT EXISTS idx_dev_scan ON devices(scan_id);
-CREATE INDEX IF NOT EXISTS idx_dev_mac ON devices(mac);
-"""
-
-
-class HistoryStore:
-    def __init__(self, path=None):
-        self.path = path or constants.DB_PATH
-        self._conn = None
-
-    def connect(self):
-        if self._conn is None:
-            self._conn = sqlite3.connect(self.path)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.executescript(SCHEMA)
-        return self._conn
-
-    def close(self):
-        if self._conn:
-            self._conn.close()
-            self._conn = None
-
-    # -- write -------------------------------------------------------------
-    def save(self, result):
-        conn = self.connect()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO scans (ts, network, scan_type, device_count, risk_grade, meta_json)"
-            " VALUES (?,?,?,?,?,?)",
-            (result.meta.generated or now_str(), result.meta.network,
-             result.meta.scan_type, len(result.devices), result.risk_grade(),
-             json.dumps(result.meta.to_dict())))
-        scan_id = cur.lastrowid
-        for d in result.devices:
-            cur.execute(
-                "INSERT INTO devices (scan_id, ip, mac, vendor, hostname, "
-                "device_type, os_guess, risk_score, open_ports, findings, device_json)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (scan_id, d.ip, d.mac, d.vendor, d.best_name(), d.device_type,
-                 d.os_guess, d.risk_score,
-                 ",".join(str(p) for p in d.open_ports()), len(d.findings),
-                 json.dumps(d.to_dict())))
-        conn.commit()
-        log.info("saved scan %d (%d devices)", scan_id, len(result.devices))
-        return scan_id
-
-    # -- read --------------------------------------------------------------
-    def list_scans(self, limit=25):
-        conn = self.connect()
-        rows = conn.execute(
-            "SELECT id, ts, network, scan_type, device_count, risk_grade "
-            "FROM scans ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
-        return [dict(r) for r in rows]
-
-    def get_scan_devices(self, scan_id):
-        conn = self.connect()
-        rows = conn.execute(
-            "SELECT ip, mac, vendor, hostname, device_type, os_guess, "
-            "risk_score, open_ports, findings FROM devices WHERE scan_id=?",
-            (scan_id,)).fetchall()
-        return [dict(r) for r in rows]
-
-    def latest_scan_for_network(self, network, exclude_id=None):
-        conn = self.connect()
-        q = "SELECT id FROM scans WHERE network=?"
-        params = [network]
-        if exclude_id:
-            q += " AND id<>?"
-            params.append(exclude_id)
-        q += " ORDER BY id DESC LIMIT 1"
-        row = conn.execute(q, params).fetchone()
-        return row["id"] if row else None
-
-
-def diff_device_lists(old_devices, new_devices):
-    """
-    Compare two lists of device dicts (as stored). Returns a dict with
-    ``new``, ``gone`` and ``changed`` lists. Identity is by MAC when available,
-    else by IP.
-    """
-    def key(d):
-        mac = d.get("mac", "-")
-        return mac if mac and mac != "-" else d.get("ip")
-
-    old_map = {key(d): d for d in old_devices}
-    new_map = {key(d): d for d in new_devices}
-
-    new_keys = [k for k in new_map if k not in old_map]
-    gone_keys = [k for k in old_map if k not in new_map]
-
-    changed = []
-    for k in new_map:
-        if k in old_map:
-            o, n = old_map[k], new_map[k]
-            op_o = set((o.get("open_ports") or "").split(",")) - {""}
-            op_n = set((n.get("open_ports") or "").split(",")) - {""}
-            if op_o != op_n or o.get("device_type") != n.get("device_type"):
-                changed.append({
-                    "ip": n.get("ip"), "name": n.get("hostname"),
-                    "added_ports": sorted(op_n - op_o, key=lambda x: int(x) if x.isdigit() else 0),
-                    "removed_ports": sorted(op_o - op_n, key=lambda x: int(x) if x.isdigit() else 0),
-                    "type_before": o.get("device_type"),
-                    "type_after": n.get("device_type"),
-                })
-
-    return {
-        "new": [new_map[k] for k in new_keys],
-        "gone": [old_map[k] for k in gone_keys],
-        "changed": changed,
-    }
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.topology
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.topology'] = r'''"""
-Network topology & path tracing.
-
-Builds a logical topology graph for the dossier (the operator's machine and the
-gateway at the centre, every discovered host as a leaf, grouped by device type)
-and can run a traceroute to an external target to document the upstream path.
-"""
-
-import re
-import subprocess
-
-from . import constants
-from .logging_setup import get_logger
-from .utils import netutils
-
-log = get_logger("topology")
-
-
-def traceroute(target="8.8.8.8", max_hops=15, timeout=2):
-    """Return a list of {hop, ip, rtt_ms} using the system tracer."""
-    hops = []
-    try:
-        if constants.IS_WINDOWS:
-            cmd = ["tracert", "-d", "-h", str(max_hops), "-w",
-                   str(int(timeout * 1000)), target]
-            enc = constants.WIN_ENCODING
-        else:
-            cmd = ["traceroute", "-n", "-m", str(max_hops), "-w",
-                   str(timeout), target]
-            enc = "utf-8"
-        out = subprocess.run(cmd, capture_output=True, text=True,
-                             encoding=enc, errors="ignore",
-                             timeout=max_hops * timeout + 15).stdout
-    except Exception as exc:
-        log.debug("traceroute failed: %s", exc)
-        return hops
-
-    for line in out.splitlines():
-        m = re.match(r"\s*(\d+)\s+(.*)", line)
-        if not m:
-            continue
-        hop_num = int(m.group(1))
-        rest = m.group(2)
-        ip_m = re.search(r"(\d{1,3}(?:\.\d{1,3}){3})", rest)
-        rtt_m = re.search(r"([\d.]+)\s*ms", rest)
-        if "*" in rest and not ip_m:
-            hops.append({"hop": hop_num, "ip": "*", "rtt_ms": None})
-        elif ip_m:
-            hops.append({"hop": hop_num, "ip": ip_m.group(1),
-                         "rtt_ms": float(rtt_m.group(1)) if rtt_m else None})
-    log.info("traceroute to %s: %d hops", target, len(hops))
-    return hops
-
-
-def build_graph(result):
-    """
-    Produce a simple topology description consumed by the HTML renderer:
-        {center: {gateway, operator}, groups: [{type, devices:[...]}], edges}
-    """
-    meta = result.meta
-    gateway = meta.gateway
-    operator = meta.local_ip
-
-    groups = {}
-    for d in result.devices:
-        if d.is_gateway:
-            continue
-        groups.setdefault(d.device_type, []).append({
-            "ip": d.ip, "name": d.best_name(), "risk": d.risk_label,
-            "is_self": d.is_self, "type": d.device_type,
-        })
-
-    ordered = sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))
-    return {
-        "gateway": gateway,
-        "operator": operator,
-        "network": meta.network,
-        "total": len(result.devices),
-        "groups": [{"type": t, "devices": ds} for t, ds in ordered],
-    }
-
-
-def annotate_hop_counts(result):
-    """On a flat LAN every host is one hop; mark gateway as hop 0."""
-    for d in result.devices:
-        d.services_detail["hop"] = 0 if d.is_gateway or d.is_self else 1
-    return result
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.ui
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.ui'] = r'''"""Rich terminal user interface for SCANFY."""
-
-from . import theme, banner, console, progress, render, menu
-
-__all__ = ["theme", "banner", "console", "progress", "render", "menu"]
-'''
-
-# ---------------------------------------------------------------------------
 # module: scanfyx.ui.banner
 # ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.ui.banner'] = r'''"""ASCII banner rendering."""
+SCANFY_MODULES['scanfyx.ui.banner'] = r'''"""ASCII banner rendering (edition-aware)."""
 
-from ..version import __version__, TAGLINE
+from rich.text import Text
+
+from .. import edition
+from ..version import __version__
 from . import theme
 
-BANNER = r"""
- ███████╗ ██████╗ █████╗ ███╗   ██╗███████╗██╗   ██╗
- ██╔════╝██╔════╝██╔══██╗████╗  ██║██╔════╝╚██╗ ██╔╝
- ███████╗██║     ███████║██╔██╗ ██║█████╗   ╚████╔╝
- ╚════██║██║     ██╔══██║██║╚██╗██║██╔══╝    ╚██╔╝
- ███████║╚██████╗██║  ██║██║ ╚████║██║        ██║
- ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝        ╚═╝
-"""
 
-_SHADES = [theme.GRASS_L, theme.GRASS_L, theme.GRASS, theme.GRASS,
-           theme.GRASS_D, theme.GRASS_D]
+def _band_shades(n):
+    # classic look: two lines light, two primary, two dark
+    base = [theme.GRASS_L, theme.GRASS_L, theme.GRASS, theme.GRASS,
+            theme.GRASS_D, theme.GRASS_D]
+    if edition.key() != "standard":
+        stops = edition.palette()["gradient"]
+        base = [edition.gradient_at(stops, i / max(1, n - 1)) for i in range(n)]
+    return [base[i] if i < len(base) else theme.GRASS for i in range(n)]
+
+
+def _diagonal(lines):
+    """Per-character diagonal gradient across the whole art."""
+    stops = edition.palette()["gradient"]
+    width = max(len(l) for l in lines) or 1
+    rows = len(lines)
+    out = []
+    for r, line in enumerate(lines):
+        t = Text()
+        for c, ch in enumerate(line):
+            pos = 0.72 * (c / width) + 0.28 * (r / max(1, rows - 1))
+            t.append(ch, style="bold " + edition.gradient_at(stops, pos))
+        out.append(t)
+    return out
 
 
 def render(console):
     console.clear()
-    lines = BANNER.strip("\n").split("\n")
-    for i, line in enumerate(lines):
-        shade = _SHADES[i] if i < len(_SHADES) else theme.GRASS
-        console.print(line, style=f"bold {shade}")
-    console.print(f"  {TAGLINE}  ::  v{__version__}", style=theme.DIRT)
+    s = edition.spec()
+    lines = edition.banner_lines()
+    if s["banner_style"] == "diagonal":
+        for t in _diagonal(lines):
+            console.print(t)
+    else:
+        for line, shade in zip(lines, _band_shades(len(lines))):
+            console.print(line, style="bold " + shade)
+
+    if s["badge"]:
+        console.print(f"  [badge] {s['badge']} [/]  [dirt]{s['tagline']}  ::  "
+                      f"v{__version__}[/]")
+    else:
+        console.print(f"  {s['tagline']}  ::  v{__version__}", style="dirt")
+    if edition.feature("greeting"):
+        console.print(f"  [title]{edition.greeting()}[/] "
+                      f"[stone]— everything below is yours.[/]")
 '''
 
 # ---------------------------------------------------------------------------
@@ -7195,7 +11305,7 @@ def error(msg):
 
 def ask(prompt):
     try:
-        return console.input(f"  [bold #6abe30]{prompt}[/] [grass.light]›[/] ").strip()
+        return console.input(f"  [key]{prompt}[/] [grass.light]›[/] ").strip()
     except (EOFError, KeyboardInterrupt):
         return ""
 
@@ -7208,25 +11318,182 @@ def pause():
 '''
 
 # ---------------------------------------------------------------------------
+# module: scanfyx.ui.dashboard
+# ---------------------------------------------------------------------------
+SCANFY_MODULES['scanfyx.ui.dashboard'] = r'''"""
+Home screen of the personal editions: the "Command Center".
+
+Everything here is local and cheap (scan history, trusted/blocked lists, KEV
+cache status), so it is redrawn every time the menu comes back.
+``snapshot`` gathers the data (pure, unit-testable); ``render`` draws it.
+"""
+
+from .. import edition
+from ..constants import capability_summary
+from ..logging_setup import get_logger
+
+log = get_logger("ui.dashboard")
+
+
+def _rel_age(ts):
+    """'2026-10-14 08:43:55' -> '2h ago' (best effort)."""
+    from datetime import datetime
+    try:
+        then = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return ts or "-"
+    secs = (datetime.now() - then).total_seconds()
+    if secs < 90:
+        return "just now"
+    if secs < 3600:
+        return "%dm ago" % (secs // 60)
+    if secs < 86400:
+        return "%dh ago" % (secs // 3600)
+    return "%dd ago" % (secs // 86400)
+
+
+def snapshot(env, store=None):
+    """Collect the dashboard numbers. Never raises."""
+    net = str(getattr(env, "network", "") or "")
+    data = {
+        "greeting": edition.greeting(),
+        "owner": edition.owner_name(),
+        "theme": edition.palette()["label"],
+        "network": net,
+        "local_ip": getattr(env, "local_ip", "-"),
+        "iface": getattr(env, "primary_iface", "") or "-",
+        "gateway": getattr(env, "gateway", "-"),
+        "public_ip": getattr(env, "public_ip", "") or "",
+        "isp": getattr(env, "isp", "") or "",
+        "last_scan": None, "device_delta": None,
+        "trusted": 0, "blocked": 0, "kev": None,
+        "engine": "",
+    }
+    try:
+        data["engine"] = capability_summary()
+    except Exception:
+        pass
+    if store is not None:
+        try:
+            scans = [s for s in store.list_scans(limit=60) if s.get("network") == net]
+            if scans:
+                last = scans[0]
+                data["last_scan"] = {"ts": last.get("ts", ""),
+                                     "age": _rel_age(last.get("ts", "")),
+                                     "type": last.get("scan_type", ""),
+                                     "devices": last.get("device_count") or 0,
+                                     "grade": last.get("risk_grade") or "-"}
+                if len(scans) > 1:
+                    data["device_delta"] = ((last.get("device_count") or 0)
+                                            - (scans[1].get("device_count") or 0))
+        except Exception as exc:
+            log.debug("dashboard history failed: %s", exc)
+    try:
+        from .. import watch
+        data["trusted"] = len(watch.load_trusted() or {})
+        data["blocked"] = len(watch.load_blocked() or {})
+    except Exception as exc:
+        log.debug("dashboard watch lists failed: %s", exc)
+    try:
+        from ..security import kev
+        data["kev"] = kev.cache_status()
+    except Exception as exc:
+        log.debug("dashboard kev status failed: %s", exc)
+    return data
+
+
+_GRADE_STYLE = {"A": "grass.light", "B": "grass", "C": "gold", "D": "warnhead",
+                "E": "alert", "F": "alert"}
+
+
+def render(env, store=None):
+    from rich.columns import Columns
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+    from .console import console
+
+    d = snapshot(env, store)
+
+    def tile(label, value, sub, style="title"):
+        body = Text.assemble((str(value), style), "\n", (sub, "stone"))
+        return Panel(body, title=f"[stone]{label}[/]", title_align="left",
+                     border_style="grass.dark", width=21, padding=(0, 1))
+
+    ls = d["last_scan"]
+    if ls:
+        grade_tile = tile("Network grade", ls["grade"],
+                          f"{ls['type']} · {ls['age']}",
+                          _GRADE_STYLE.get(ls["grade"], "title"))
+        delta = d["device_delta"]
+        dsub = ("same as before" if delta == 0 else
+                f"{delta:+d} vs last scan" if delta is not None
+                else "first scan")
+        dev_tile = tile("Devices seen", ls["devices"], dsub)
+    else:
+        grade_tile = tile("Network grade", "—", "press 2 to scan", "stone")
+        dev_tile = tile("Devices seen", "—", "no scan yet", "stone")
+
+    trust_tile = tile("Trusted", f"{d['trusted']} ✓",
+                      "known devices" if d["trusted"] else "via WiFi Watch",
+                      "grass.light" if d["trusted"] else "stone")
+    block_tile = tile("Blocked", f"{d['blocked']} ⛔",
+                      "on your blocklist" if d["blocked"] else "nobody blocked",
+                      "alert" if d["blocked"] else "stone")
+    k = d["kev"]
+    if k:
+        kev_tile = tile("Threat intel", f"{k['count']} CVEs",
+                        "CISA KEV · %.0fd old" % k["age_days"] if k["age_days"] < 100 else "CISA KEV · stale",
+                        "gold" if k["age_days"] > 7 else "title")
+    else:
+        kev_tile = tile("Threat intel", "offline", "press K to fetch", "stone")
+
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column(style="grass.light", justify="right")
+    grid.add_column(style="white")
+    grid.add_row("This PC", f"{d['local_ip']}  [stone]({d['iface']})[/]")
+    grid.add_row("Network", f"{d['network']}  [stone]via[/] {d['gateway']}")
+    if d["public_ip"]:
+        grid.add_row("Internet", f"{d['public_ip']}  [stone]{d['isp']}[/]")
+    grid.add_row("Engine", f"[stone]{d['engine']}[/]")
+    grid.add_row("Theme", f"[stone]{d['theme']}[/]")
+
+    console.print(Panel(
+        Columns([grade_tile, dev_tile, trust_tile, block_tile, kev_tile],
+                padding=(0, 1)),
+        title="[title]◆ COMMAND CENTER[/]", subtitle=(f"[stone]{d['owner']}'s network[/]" if d["owner"]
+                  else "[stone]your network[/]"),
+        border_style="grass", title_align="left", subtitle_align="right"))
+    console.print(grid)
+'''
+
+# ---------------------------------------------------------------------------
 # module: scanfyx.ui.menu
 # ---------------------------------------------------------------------------
 SCANFY_MODULES['scanfyx.ui.menu'] = r'''"""
 Interactive menu controller.
 
-Drives the whole terminal experience: shows the banner and environment, offers
-scan profiles, runs the engine with a live progress display, renders results and
-handles dossier export, single-host deep scans, the ARP snapshot, scan history
-and the continuous monitor.
+Drives the whole terminal experience: shows the banner and the home panel
+(environment, the owner's Command Center, or the Pro engagement), offers scan
+profiles, runs the engine with a live progress display, renders results and
+handles dossier export, single-host deep scans, the ARP snapshot, WiFi Watch,
+scan history, the continuous monitor and settings.
+
+What is shown depends on the edition features (see ``scanfyx.edition``):
+dashboard editions get the Command Center, WiFi Watch first, colour themes and
+the KEV refresh; an edition with engagements enabled adds the authorization
+gate and audit log.
 """
 
+import getpass
 import ipaddress
-import threading
 
 from rich import box
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
-from .. import engine, report, storage, vendors
+from .. import edition, engagement, engine, report, storage, vendors
 from ..config import ScanConfig, PROFILES
 from ..constants import capability_summary
 from ..discovery import arp as arp_disc
@@ -7236,6 +11503,10 @@ from .console import console, ask, pause, ok, warn, error, info
 from .progress import RichProgress
 
 log = get_logger("ui.menu")
+
+# "no" in the languages people commonly answer prompts in
+_NO = ("n", "no", "nao", "não", "nein", "non", "nee", "nej", "nei", "nie", "ne",
+       "нет", "いいえ", "不")
 
 
 class InteractiveApp:
@@ -7249,61 +11520,106 @@ class InteractiveApp:
     def start(self):
         console.print("  [stone]Detecting network environment…[/]")
         self.env = engine.detect_environment(with_public_ip=self.config.geoip_public)
+        if edition.feature("engagement") and not self._ensure_engagement():
+            warn("No active engagement — scanning stays disabled until you record "
+                 "one with [E].")
+            pause()
         self.loop()
 
     def loop(self):
         while True:
-            banner.render(console)
-            render.environment_panel(self.env)
+            self._header()
             self._menu()
-            choice = ask("scanfy")
+            choice = ask(edition.spec()["prompt"]).strip()
+            key = choice.lower()
+            if key in ("0", "x", "exit", "quit"):
+                ok(edition.exit_message())
+                break
+            action = self._actions().get(key)
             try:
-                if choice in ("1", "q"):
-                    self._run(profile="fast", label="Quick", deep=False)
-                elif choice in ("2", "d", ""):
-                    self._run(profile="default", label="Deep", deep=True)
-                elif choice == "3":
-                    self._run(profile="thorough", label="Thorough", deep=True)
-                elif choice == "4":
-                    self._single_host()
-                elif choice == "5":
-                    self._arp_table()
-                elif choice == "6":
-                    self._export()
-                elif choice == "7":
-                    self._history()
-                elif choice == "8":
-                    self._monitor()
-                elif choice == "9":
-                    self._settings()
-                elif choice in ("0", "x", "exit", "quit"):
-                    ok("See you! · Viva os Hacker do Brasil 🇧🇷")
-                    break
-                else:
+                if action is None:
                     error("Invalid option.")
+                else:
+                    action()
             except KeyboardInterrupt:
                 warn("Aborted.")
+            except engagement.ScopeError as exc:
+                error(f"⛔ {exc}")
+            except Exception as exc:  # one broken action must not kill the app
+                log.exception("menu action %r failed", key)
+                error(f"Unexpected error: {exc}  (details in ~/.scanfy/scanfy.log)")
             pause()
+
+    def _header(self):
+        banner.render(console)
+        if edition.feature("dashboard"):
+            from . import dashboard
+            dashboard.render(self.env, self.store)
+        else:
+            render.environment_panel(self.env)
+        if edition.feature("engagement"):
+            render.engagement_panel(engagement.current())
+
+    def _actions(self):
+        a = {
+            "1": lambda: self._run(profile="fast", label="Quick", deep=False),
+            "q": lambda: self._run(profile="fast", label="Quick", deep=False),
+            "2": lambda: self._run(profile="default", label="Deep", deep=True),
+            "d": lambda: self._run(profile="default", label="Deep", deep=True),
+            "": lambda: self._run(profile="default", label="Deep", deep=True),
+            "3": lambda: self._run(profile="thorough", label="Thorough", deep=True),
+            "4": self._single_host,
+            "5": self._arp_table,
+            "6": self._export,
+            "7": self._history,
+            "8": self._monitor,
+            "9": self._settings,
+        }
+        if edition.feature("wifi_watch"):
+            a["w"] = self._wifi_watch
+        if edition.feature("dashboard"):
+            a["k"] = self._update_kev
+        if edition.feature("engagement"):
+            a["e"] = self._engagement_menu
+        return a
 
     def _menu(self):
         m = Table.grid(padding=(0, 2))
-        m.add_column(style="bold #6abe30", justify="right")
+        m.add_column(style="key", justify="right")
         m.add_column(style="white")
         m.add_column(style="stone")
+        personal = edition.feature("dashboard")
+        watch_row = ("[W]", "WiFi Watch",
+                     "[alert]who's on my network? · intruder alert · block[/]"
+                     if personal else
+                     "[alert]connected devices · intruder detection · block[/]")
+        if personal and edition.feature("wifi_watch"):
+            m.add_row(*watch_row)
         m.add_row("[1]", "Quick scan", "discovery + identity (fast)")
         m.add_row("[2]", "Deep scan", "ports · OS · HTTP/TLS · findings   (recommended)")
-        m.add_row("[3]", "Thorough scan", "all ports · UDP · nmap (if present) · traceroute")
+        m.add_row("[3]", "Thorough scan", "all ports · UDP · nmap every host (-sV/-O/NSE) · traceroute")
         m.add_row("[4]", "Single host", "deep-scan one IP")
         m.add_row("[5]", "ARP table", "instant snapshot")
-        m.add_row("[6]", "Export dossier", "HTML · MD · JSON · CSV · XML · TXT · PDF")
+        if not personal and edition.feature("wifi_watch"):
+            m.add_row(*watch_row)
+        if edition.feature("engagement"):
+            m.add_row("[6]", "Export report", "formal PDF (client) · HTML · MD · JSON · CSV · XML · TXT")
+        else:
+            m.add_row("[6]", "Export dossier", "HTML · MD · JSON · CSV · XML · TXT · PDF")
         m.add_row("[7]", "Scan history", "compare with previous scans")
         m.add_row("[8]", "Monitor mode", "watch for new/leaving devices")
-        m.add_row("[9]", "Settings", "profile · timeouts · output dir")
+        m.add_row("[9]", "Settings", "profile · threat intel · output dir"
+                  + (" · theme · name" if edition.feature("themes") else ""))
+        if edition.feature("dashboard"):
+            m.add_row("[K]", "Threat intel", "refresh the CISA KEV known-exploited catalog")
+        if edition.feature("engagement"):
+            m.add_row("[E]", "Engagement", "client · authorization · scope · audit log")
         m.add_row("[0]", "Exit", "")
         console.print(m)
 
-    # -- actions -----------------------------------------------------------
+    # -- scans -----------------------------------------------------------------
     def _run(self, profile, label, deep):
+        engagement.check_target(self.env.network, action=label)  # refuse before announcing
         self.config.apply_profile(profile)
         console.print(f"\n  [grass.light]Starting {label} scan of "
                       f"{self.env.network}…[/]\n")
@@ -7332,6 +11648,7 @@ class InteractiveApp:
         except ValueError:
             error("Invalid IP.")
             return
+        engagement.check_target(ip, action="single_host")   # refuse before announcing
         self.config.apply_profile("deep")
         console.print(f"\n  [grass.light]Deep-scanning {ip}…[/]\n")
         with RichProgress() as prog:
@@ -7346,7 +11663,7 @@ class InteractiveApp:
         real = {ip: mac for ip, mac in table.items()
                 if netutils.is_real_device(ip, mac)}
         vendor_map = vendors.resolve_many(real.values())
-        t = Table(box=box.SIMPLE_HEAVY, header_style="bold #6abe30")
+        t = Table(box=box.SIMPLE_HEAVY, header_style="key")
         t.add_column("IP", style="grass.light")
         t.add_column("MAC", style="grass")
         t.add_column("Vendor", style="white")
@@ -7355,22 +11672,233 @@ class InteractiveApp:
         console.print(t)
         ok(f"{len(real)} devices in the ARP table")
 
+    # -- WiFi Watch / intruder detection (standard + owner) -------------------
+    def _wifi_watch(self):
+        console.print("\n  [grass.light]WiFi Watch — scanning connected devices "
+                      "(identity + intruder check)…[/]\n")
+        try:
+            with RichProgress() as prog:
+                result = engine.run_wifi_watch(self.config, env=self.env,
+                                               progress=prog)
+        except KeyboardInterrupt:
+            warn("Aborted.")
+            return
+        self.last_result = result
+        self._watch_view(result)
+
+    def _watch_view(self, result):
+        from .. import watch
+        while True:
+            trusted = watch.load_trusted()
+            blocked = watch.load_blocked()
+            summary = watch.annotate(result.devices, trusted, blocked)
+            self._render_watch_table(result.devices)
+            intr = watch.intruders(result.devices, trusted)
+            still = summary.get("blocked_present", [])
+            console.print()
+            # a device you blocked but that is STILL here -> loud alert
+            if still:
+                error(f"⛔  {len(still)} device(s) you BLOCKED are STILL on the "
+                      f"network — the router rule isn't applied yet, or the MAC "
+                      f"changed:")
+                for d in still:
+                    warn(f"    ⛔ {d.ip}  {d.mac}  {d.best_name()}")
+            elif blocked:
+                ok(f"None of the {len(blocked)} device(s) you blocked are present "
+                   f"— the block is working. ✓")
+            if intr:
+                error(f"⚠  {len(intr)} UNKNOWN device(s) on your network — "
+                      f"possible intruder!")
+                for d in intr:
+                    warn(f"    - {d.ip}  {d.mac}  {d.vendor}  "
+                         f"{d.best_name()}  [{d.device_type}]")
+            elif not trusted:
+                info("No trusted devices saved yet. Use [T] to mark the ones you "
+                     "recognise, then anything new stands out as an intruder.")
+            elif not still:
+                ok("All connected devices are on your trusted list. ✓")
+            console.print("\n  [key][T][/] Trust   "
+                          + ("[key][B][/] Block / expel an intruder   "
+                             if edition.feature("block") else "")
+                          + "[key][U][/] Un-trust   "
+                          "[key][C][/] Copy a MAC   "
+                          "[key][R][/] Re-scan   "
+                          "[key][0][/] Back")
+            choice = ask("watch").lower()
+            if choice == "t":
+                self._watch_trust(result.devices)
+            elif choice == "b" and edition.feature("block"):
+                self._watch_block(result.devices)
+            elif choice == "u":
+                self._watch_untrust(result.devices)
+            elif choice == "c":
+                self._watch_copy(result.devices)
+            elif choice == "r":
+                try:
+                    with RichProgress() as prog:
+                        result = engine.run_wifi_watch(self.config, env=self.env,
+                                                       progress=prog)
+                    self.last_result = result
+                except KeyboardInterrupt:
+                    warn("Aborted.")
+            elif choice in ("0", "", "x", "back"):
+                break
+            else:
+                error("Invalid option.")
+
+    def _render_watch_table(self, devices):
+        icons = {"self": "★", "gateway": "⌂", "trusted": "✓", "unknown": "⚠"}
+        labels = {"self": "This PC", "gateway": "Router",
+                  "trusted": "Trusted", "unknown": "UNKNOWN"}
+        styles = {"self": "water", "gateway": "gold",
+                  "trusted": "grass", "unknown": "alert"}
+        t = Table(box=box.SIMPLE_HEAVY, header_style="key")
+        t.add_column("#", style="stone", justify="right")
+        t.add_column("", justify="center")
+        t.add_column("IP", style="grass.light")
+        t.add_column("MAC", style="grass")
+        t.add_column("Vendor", style="white")
+        t.add_column("Name", style="white")
+        t.add_column("Type", style="leaf")
+        t.add_column("Status")
+        for i, d in enumerate(devices, 1):
+            status = d.services_detail.get("presence", "unknown")
+            rmac = " (rnd)" if d.randomized_mac else ""
+            blocked_here = d.services_detail.get("blocked_present")
+            icon = "⛔" if blocked_here else icons.get(status, "")
+            if blocked_here:
+                stat_cell = "[alert]BLOCKED — STILL HERE[/]"
+            else:
+                stat_cell = f"[{styles[status]}]{labels[status]}[/]"
+            t.add_row(str(i), icon, d.ip,
+                      (d.mac or "-") + rmac, d.vendor or "-", d.best_name(),
+                      d.device_type, stat_cell)
+        console.print(t)
+
+    def _watch_pick(self, devices, sel):
+        from .. import watch
+        sel = (sel or "").strip()
+        if sel.isdigit():
+            i = int(sel)
+            return devices[i - 1] if 1 <= i <= len(devices) else None
+        m = watch.normalize_mac(sel)
+        for d in devices:
+            if m and watch.normalize_mac(d.mac) == m:
+                return d
+        return None
+
+    def _watch_trust(self, devices):
+        from .. import watch
+        dev = self._watch_pick(devices, ask("Device # (or MAC) to TRUST"))
+        if not dev:
+            error("No such device.")
+            return
+        if watch.normalize_mac(dev.mac) == "":
+            error("That device has no usable MAC — cannot trust it.")
+            return
+        label = ask(f"Label for {dev.ip} [{dev.best_name()}]") or dev.best_name()
+        if watch.trust_device(dev, label):
+            ok(f"Trusted {dev.ip} ({dev.mac}) as “{label}”.")
+        else:
+            error("Could not save the trusted list.")
+
+    def _watch_untrust(self, devices):
+        from .. import watch
+        dev = self._watch_pick(devices, ask("Device # (or MAC) to UN-TRUST"))
+        if not dev:
+            error("No such device.")
+            return
+        if watch.untrust_mac(dev.mac):
+            ok(f"{dev.ip} ({dev.mac}) removed from the trusted list.")
+        else:
+            warn("That device was not on the trusted list.")
+
+    def _watch_block(self, devices):
+        from .. import watch
+        dev = self._watch_pick(devices, ask("Intruder device # (or MAC) to BLOCK"))
+        if not dev:
+            error("No such device.")
+            return
+        if dev.is_self:
+            warn("That is THIS computer — not blocking.")
+            return
+        if dev.is_gateway:
+            warn("That is your router/gateway — not blocking.")
+            return
+        gw = next((d for d in devices if d.is_gateway), None)
+        steps = watch.block_playbook(self.env, dev, gw)
+        console.print(Panel("\n".join(steps),
+                            title="[alert]Block & expel — surgical router method[/]",
+                            border_style="danger", title_align="left"))
+        warn("SCANFY does NOT send Wi-Fi deauth frames — that is an illegal "
+             "wireless DoS that only disconnects the device for a moment (and "
+             "disturbs your neighbours). The router block above is surgical and "
+             "permanent.")
+        # 1) copy the MAC so the user can paste it into the router page
+        if watch.normalize_mac(dev.mac):
+            if ask("Copy this MAC to the clipboard? [Y/n]").lower() not in _NO:
+                if watch.copy_to_clipboard(dev.mac):
+                    ok(f"Copied {dev.mac} — paste it into the router's blacklist.")
+                else:
+                    warn("Could not access the clipboard on this system.")
+        # 2) open the router admin page
+        if ask("Open the router admin page now? [Y/n]").lower() not in _NO:
+            url = watch.router_admin_url(self.env) or "your router IP"
+            if watch.open_router_admin(self.env):
+                ok(f"Opened {url} in your browser.")
+            else:
+                error(f"Could not open a browser. Go to {url} manually.")
+        # 3) remember the block so future scans confirm it worked
+        if watch.normalize_mac(dev.mac) and \
+                ask("Mark it as blocked, so future scans confirm it's gone? [Y/n]").lower() \
+                not in _NO:
+            if watch.mark_blocked(dev):
+                ok(f"Marked {dev.best_name()} as blocked. Re-scan later — if it "
+                   f"reappears you'll get a ⛔ alert.")
+            else:
+                warn("Could not save the blocklist.")
+
+    def _watch_copy(self, devices):
+        from .. import watch
+        dev = self._watch_pick(devices, ask("Device # (or MAC) to COPY"))
+        if not dev:
+            error("No such device.")
+            return
+        if not watch.normalize_mac(dev.mac):
+            error("That device has no usable MAC.")
+            return
+        if watch.copy_to_clipboard(dev.mac):
+            ok(f"Copied {dev.mac} to the clipboard.")
+        else:
+            warn(f"Could not access the clipboard. MAC is: {dev.mac}")
+
+    # -- export / history / monitor ------------------------------------------
     def _export(self):
         if not self.last_result:
             error("No scan results yet. Run a scan first.")
             return
-        console.print("\n  [bold #6abe30][1][/] HTML   [bold #6abe30][2][/] Markdown   "
-                      "[bold #6abe30][3][/] JSON   [bold #6abe30][4][/] CSV   "
-                      "[bold #6abe30][5][/] XML   [bold #6abe30][6][/] TXT   "
-                      "[bold #6abe30][7][/] PDF   [bold #6abe30][8][/] All")
+        pdf_label = "PDF (green)" if edition.key() == "standard" else "PDF (styled)"
+        if edition.feature("engagement"):
+            console.print("\n  [key][8][/] [title]Formal PDF report for the client "
+                          "(recommended)[/]")
+        console.print("\n  [key][1][/] HTML   [key][2][/] Markdown   "
+                      "[key][3][/] JSON   [key][4][/] CSV   "
+                      f"[key][5][/] XML   [key][6][/] TXT   [key][7][/] {pdf_label}")
+        if not edition.feature("engagement"):
+            legal = " (LGPD)" if edition.spec().get("legal") == "lgpd" else ""
+            console.print(f"  [key][8][/] Formal PDF dossier{legal}   [key][9][/] All")
+        else:
+            console.print("  [key][9][/] All")
         choice = ask("format")
         mapping = {"1": ["html"], "2": ["markdown"], "3": ["json"], "4": ["csv"],
-                   "5": ["xml"], "6": ["txt"], "7": ["pdf"],
-                   "8": ["html", "markdown", "json", "csv", "xml", "txt", "pdf"]}
+                   "5": ["xml"], "6": ["txt"], "7": ["pdf"], "8": ["dossier"],
+                   "9": ["html", "markdown", "json", "csv", "xml", "txt", "pdf", "dossier"]}
         fmts = mapping.get(choice)
         if not fmts:
             error("Invalid option.")
             return
+        if "pdf" in fmts or "dossier" in fmts:
+            self._choose_report_lang()
         console.print()
         for fmt in fmts:
             label, fn = report.FORMATS[fmt]
@@ -7378,17 +11906,35 @@ class InteractiveApp:
                 path = fn(self.last_result, self.config)
                 if path:
                     ok(f"saved {label}: [white]{path}[/]")
+                    engagement.audit("export", format=fmt, path=path)
                 else:
                     warn(f"{label} skipped (dependency missing)")
             except Exception as exc:
                 error(f"{label} failed: {exc}")
+
+    def _choose_report_lang(self):
+        """Ask which language the PDF dossiers should use (remembered)."""
+        from ..report import i18n
+        cur = i18n.resolve(self.config)
+        opts = "   ".join(
+            f"[key]\\[{code}][/] {name}" + (" [stone](current)[/]" if code == cur else "")
+            for code, name in i18n.LANGS.items())
+        console.print(f"  PDF language:  {opts}")
+        sel = ask(f"PDF language [{cur}]").strip()
+        code = i18n.normalize(sel) if sel else cur
+        if not code:
+            warn(f"Unknown language '{sel}' — using {i18n.LANGS[cur]}.")
+            code = cur
+        self.config.report_lang = code
+        i18n.save_default(code)
+        return code
 
     def _history(self):
         scans = self.store.list_scans(limit=15)
         if not scans:
             info("No scan history yet.")
             return
-        t = Table(box=box.SIMPLE, header_style="bold #6abe30")
+        t = Table(box=box.SIMPLE, header_style="key")
         t.add_column("ID", style="grass")
         t.add_column("When", style="stone")
         t.add_column("Network")
@@ -7423,12 +11969,15 @@ class InteractiveApp:
     def _monitor(self):
         from ..monitor import NetworkMonitor
         from ..discovery import orchestrator as disc
+        engagement.check_target(self.env.network, action="monitor")
         interval = ask("Poll interval seconds [30]") or "30"
         try:
             interval = max(10, int(interval))
         except ValueError:
             interval = 30
         warn(f"Monitoring {self.env.network} every {interval}s. Press Ctrl+C to stop.")
+        engagement.audit("monitor_start", target=str(self.env.network),
+                         interval=interval)
 
         mon_cfg = ScanConfig().apply_profile("fast")
         mon_cfg.http = mon_cfg.tls = mon_cfg.snmp = mon_cfg.smb = False
@@ -7455,11 +12004,29 @@ class InteractiveApp:
         except KeyboardInterrupt:
             warn("Monitor stopped.")
 
+    # -- threat intel (owner) -----------------------------------------------------
+    def _update_kev(self):
+        from ..security import kev
+        with console.status("[title]Downloading the CISA KEV catalog…[/]",
+                            spinner="dots", spinner_style="grass"):
+            cat = kev.load(force=True)
+        if cat:
+            ok(f"Threat intel updated: {len(cat)} known-exploited CVEs "
+               f"(catalog {cat.meta.get('catalog_version', '?')}).")
+        else:
+            error("Could not download the KEV catalog (no internet?). "
+                  "The cached copy, if any, is still used.")
+
+    # -- settings ------------------------------------------------------------------
     def _settings(self):
         c = self.config
         t = Table.grid(padding=(0, 2))
         t.add_column(style="grass.light", justify="right")
         t.add_column(style="white")
+        if edition.feature("themes"):
+            t.add_row("Owner" if edition.key() == "owner" else "Your name",
+                      edition.owner_name() or "[stone](not set)[/]")
+            t.add_row("Theme", edition.palette()["label"])
         t.add_row("Profile", f"{c.profile} ({c.profile_label()})")
         t.add_row("Port set", c.port_set)
         t.add_row("TCP timeout", f"{c.tcp_timeout}s")
@@ -7468,15 +12035,25 @@ class InteractiveApp:
         t.add_row("TLS fp", str(c.tls))
         t.add_row("UDP probes", str(c.udp))
         t.add_row("Public IP lookup", str(c.geoip_public))
+        t.add_row("CISA KEV intel", str(c.kev))
+        t.add_row("Online CVE (NVD)", str(c.cve_online)
+                  + ("  [stone](API key set)[/]" if c.nvd_api_key else ""))
         t.add_row("Report dir", c.report_dir)
+        from ..report import i18n
+        t.add_row("PDF language", i18n.LANGS[i18n.resolve(c)])
         t.add_row("Engine", capability_summary())
         console.print(Panel(t, title="[grass]Settings[/]", border_style="grass.dark",
                             title_align="left"))
-        console.print("  [bold #6abe30][1][/] Change profile   "
-                      "[bold #6abe30][2][/] Set report dir   "
-                      "[bold #6abe30][3][/] Toggle public-IP lookup   "
-                      "[bold #6abe30][0][/] Back")
-        choice = ask("settings")
+        line = ("  [key][1][/] Change profile   [key][2][/] Set report dir   "
+                "[key][3][/] Toggle public-IP lookup\n"
+                "  [key][4][/] Toggle KEV intel   [key][5][/] Toggle online NVD lookups   "
+                "[key][6][/] Set NVD API key\n"
+                "  [key][7][/] PDF dossier language")
+        if edition.feature("themes"):
+            line += ("\n  [key][T][/] Theme   [key][O][/] "
+                     + ("Owner name" if edition.key() == "owner" else "Your name"))
+        console.print(line + "   [key][0][/] Back")
+        choice = ask("settings").lower()
         if choice == "1":
             names = list(PROFILES.keys())
             console.print("  Profiles: " + ", ".join(
@@ -7495,6 +12072,137 @@ class InteractiveApp:
         elif choice == "3":
             self.config.geoip_public = not self.config.geoip_public
             ok(f"Public-IP lookup: {self.config.geoip_public}")
+        elif choice == "4":
+            self.config.kev = not self.config.kev
+            ok(f"CISA KEV known-exploited enrichment: {self.config.kev}")
+        elif choice == "5":
+            self.config.cve_online = not self.config.cve_online
+            ok(f"Online NVD CPE->CVE lookups: {self.config.cve_online}"
+               + ("  (used when nmap reports CPEs — e.g. Thorough scan)"
+                  if self.config.cve_online else ""))
+        elif choice == "6":
+            key = ask("NVD API key (blank to clear)")
+            self.config.nvd_api_key = key.strip()
+            ok("NVD API key " + ("set." if key.strip() else "cleared."))
+        elif choice == "7":
+            code = self._choose_report_lang()
+            from ..report import i18n
+            ok(f"PDF dossiers will be written in {i18n.LANGS[code]}.")
+        elif choice == "t" and edition.feature("themes"):
+            self._pick_theme()
+        elif choice == "o" and edition.feature("themes"):
+            current = edition.owner_name()
+            name = ask(f"Your name [{current}]" if current else "Your name")
+            if name and edition.set_owner_name(name):
+                ok(f"Hello, {edition.owner_name()}!")
+
+    def _pick_theme(self):
+        themes = edition.available_themes()
+        for i, name in enumerate(themes, 1):
+            pal = edition.PALETTES[name]
+            swatch = Text()
+            for j in range(18):
+                swatch.append("█", style=edition.gradient_at(pal["gradient"], j / 17))
+            mark = "  [title]◀ current[/]" if name == edition.palette_name() else ""
+            console.print(Text.assemble(f"  [{i}] ", swatch, f"  {pal['label']}"),
+                          end="")
+            console.print(mark)
+        sel = ask("theme #").strip()
+        name = themes[int(sel) - 1] if sel.isdigit() and 1 <= int(sel) <= len(themes) \
+            else sel.lower()
+        if theme.apply_palette(name):
+            ok(f"Theme set to {edition.palette()['label']} — reports follow it too.")
+        else:
+            error("Unknown theme.")
+
+    # -- engagement (pro) ---------------------------------------------------------
+    def _ensure_engagement(self):
+        saved = engagement.load_saved()
+        if saved and saved.authorized:
+            console.print(Panel(
+                f"Client: [title]{saved.client}[/]\nOperator: {saved.operator}\n"
+                f"Authorization: {saved.auth_ref}\nScope: {saved.scope_str()}\n"
+                f"Started: {saved.started}",
+                title="[warnhead]Saved engagement found[/]", border_style="gold",
+                title_align="left"))
+            if ask("Resume this engagement? [Y/n]").lower() not in _NO:
+                engagement.resume(saved)
+                ok(f"Engagement '{saved.client}' resumed.")
+                return True
+        return self._new_engagement()
+
+    def _new_engagement(self):
+        console.print(Panel(
+            "SCANFY Pro only scans networks you are [b]authorized in writing[/] to "
+            "test.\nRecord the engagement below — it is stamped on every report and "
+            "every scan, refusal and export goes to the audit log.",
+            title="[title]New engagement[/]", border_style="grass", title_align="left"))
+        client = ask("Client / organization")
+        if not client:
+            warn("Cancelled.")
+            return False
+        try:
+            default_op = getpass.getuser()
+        except Exception:
+            default_op = ""
+        operator = ask(f"Operator (your name) [{default_op}]") or default_op
+        auth_ref = ask("Authorization reference (contract / work order / ticket #)")
+        default_scope = str(self.env.network) if self.env else ""
+        scope = None
+        for _ in range(3):
+            raw = ask(f"Authorized scope, CIDR/IP list [{default_scope}]") or default_scope
+            try:
+                scope = engagement.parse_scope(raw)
+                break
+            except ValueError as exc:
+                error(f"Invalid scope: {exc}")
+        if not scope:
+            return False
+        attest = ask('Type "I AGREE" to confirm you hold written authorization '
+                     'for this scope')
+        if attest.strip().upper() not in ("I AGREE", "EU CONCORDO", "CONCORDO"):
+            error("Authorization not confirmed — nothing will be scanned.")
+            engagement.audit("engagement_declined", client=client)
+            return False
+        try:
+            eng = engagement.start(client, operator, auth_ref, scope, authorized=True)
+        except ValueError as exc:
+            error(f"Engagement not recorded: {exc}")
+            return False
+        ok(f"Engagement '{eng.client}' recorded — scope {eng.scope_str()}.")
+        if self.env and not eng.covers(self.env.network):
+            warn(f"Note: this machine's network {self.env.network} is NOT inside the "
+                 f"scope, so network-wide scans from here will be refused.")
+        return True
+
+    def _engagement_menu(self):
+        render.engagement_panel(engagement.current())
+        rows = engagement.read_audit(limit=12)
+        if rows:
+            t = Table(box=box.SIMPLE, header_style="key", title="[stone]Audit log (latest)[/]",
+                      title_justify="left")
+            t.add_column("When", style="stone")
+            t.add_column("Event", style="grass.light")
+            t.add_column("Detail", style="white")
+            for r in rows:
+                detail = r.get("target") or r.get("path") or r.get("client") or ""
+                if r.get("event") == "scan_complete":
+                    detail = f"{r.get('target', '')} · {r.get('devices', '?')} devices · grade {r.get('grade', '?')}"
+                t.add_row(str(r.get("ts", "")).replace("T", " "), r.get("event", ""),
+                          str(detail))
+            console.print(t)
+            info(f"Full log: {engagement.AUDIT_PATH}")
+        console.print("  [key][N][/] New engagement   [key][C][/] Close engagement   "
+                      "[key][0][/] Back")
+        choice = ask("engagement").lower()
+        if choice == "n":
+            self._new_engagement()
+        elif choice == "c":
+            if engagement.current() is None:
+                info("No engagement is active.")
+            elif ask("Close the current engagement? [y/N]").lower() in ("y", "yes", "s", "sim"):
+                engagement.close()
+                ok("Engagement closed. Scanning is disabled until a new one is recorded.")
 '''
 
 # ---------------------------------------------------------------------------
@@ -7518,10 +12226,10 @@ from . import theme
 class RichProgress:
     def __init__(self):
         self._progress = Progress(
-            SpinnerColumn(style=theme.GRASS),
-            TextColumn("[bold #96dc5a]{task.description}"),
-            BarColumn(complete_style=theme.GRASS, finished_style=theme.GRASS_D,
-                      pulse_style=theme.GRASS_D),
+            SpinnerColumn(style="grass"),
+            TextColumn("[title]{task.description}"),
+            BarColumn(complete_style="grass", finished_style="grass.dark",
+                      pulse_style="grass.dark"),
             MofNCompleteColumn(),
             TimeElapsedColumn(),
             console=console,
@@ -7596,6 +12304,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.columns import Columns
 
+from .. import edition
 from ..constants import severity_rank
 from .console import console
 from . import theme
@@ -7604,9 +12313,9 @@ from .theme import SEV_STYLE, RISK_STYLE
 
 def _tag(dev):
     if dev.is_self:
-        return " [bold #96dc5a](you)[/]"
+        return " [title](you)[/]"
     if dev.is_gateway:
-        return " [bold #e6c85a](router)[/]"
+        return " [warnhead](router)[/]"
     return ""
 
 
@@ -7629,10 +12338,32 @@ def environment_panel(env):
                         border_style="grass.dark", title_align="left"))
 
 
+def engagement_panel(eng):
+    """Pro edition: the active engagement (or a loud 'none' notice)."""
+    if eng is None:
+        console.print(Panel(
+            "[alert]No active engagement — scanning is disabled.[/]\n"
+            "[stone]Press [/][key]E[/][stone] to record the client, your name, the "
+            "authorization reference and the authorized scope.[/]",
+            title="[warnhead]Engagement[/]", border_style="danger",
+            title_align="left"))
+        return
+    t = Table.grid(padding=(0, 2))
+    t.add_column(style="grass.light", justify="right")
+    t.add_column(style="white")
+    t.add_row("Client", f"[title]{eng.client}[/]")
+    t.add_row("Operator", eng.operator)
+    t.add_row("Authorization", eng.auth_ref)
+    t.add_row("Scope", eng.scope_str())
+    t.add_row("Since", eng.started)
+    console.print(Panel(t, title="[grass]Engagement · authorized[/]",
+                        border_style="grass", title_align="left"))
+
+
 def inventory_table(result, deep=True):
-    table = Table(box=box.ROUNDED, header_style="bold #6abe30",
+    table = Table(box=box.ROUNDED, header_style="key",
                   border_style="grass.dark",
-                  title=f"[bold #96dc5a]SCANFY — {result.meta.scan_type} scan · "
+                  title=f"[title]{edition.product()} — {result.meta.scan_type} scan · "
                         f"{len(result.devices)} devices[/]", title_justify="left")
     table.add_column("IP", style="grass.light", no_wrap=True)
     table.add_column("MAC", style="grass", no_wrap=True)
@@ -7665,7 +12396,7 @@ def findings_panel(result):
                             border_style="grass.dark", title_align="left",
                             style="grass.light"))
         return
-    t = Table(box=box.SIMPLE, header_style="bold #e6c85a", expand=False)
+    t = Table(box=box.SIMPLE, header_style="warnhead", expand=False)
     t.add_column("Sev")
     t.add_column("Host", style="grass.light")
     t.add_column("Service", style="grass")
@@ -7735,7 +12466,7 @@ def render_device_card(device):
     t.add_row("Risk", Text(f"{device.risk_score:g} ({device.risk_label})",
                            style=RISK_STYLE.get(device.risk_label, "stone")))
 
-    ports_t = Table(box=box.SIMPLE, header_style="bold #6abe30", show_edge=False)
+    ports_t = Table(box=box.SIMPLE, header_style="key", show_edge=False)
     ports_t.add_column("Port", style="grass")
     ports_t.add_column("Service")
     ports_t.add_column("Product / Version", style="stone")
@@ -7745,7 +12476,7 @@ def render_device_card(device):
                         " ".join(filter(None, [p.product, p.version])),
                         (p.banner or "")[:40])
 
-    console.print(Panel(t, title=f"[bold #96dc5a]● {device.ip}[/]",
+    console.print(Panel(t, title=f"[title]● {device.ip}[/]",
                         border_style="grass", title_align="left"))
     if device.ports:
         console.print(ports_t)
@@ -7758,7 +12489,7 @@ def render_device_card(device):
                       f"CN={tinfo.subject_cn} issuer={tinfo.issuer_cn} "
                       f"{tinfo.key_type}{tinfo.key_bits}")
     if device.findings:
-        ft = Table(box=box.SIMPLE, header_style="bold #e6c85a")
+        ft = Table(box=box.SIMPLE, header_style="warnhead")
         ft.add_column("Sev")
         ft.add_column("Finding")
         ft.add_column("Recommendation", style="stone")
@@ -7772,44 +12503,83 @@ def render_device_card(device):
 # ---------------------------------------------------------------------------
 # module: scanfyx.ui.theme
 # ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.ui.theme'] = r'''"""Rich theme and shared style tokens (Minecraft grass palette)."""
+SCANFY_MODULES['scanfyx.ui.theme'] = r'''"""
+Rich theme and shared style tokens, built from the active edition palette.
+
+The historic style names ("grass", "grass.light", "stone", ...) are kept as
+semantic slots so every screen keeps working; the edition decides the colours.
+Extra composite tokens ("key", "title", "badge", ...) exist because rich only
+resolves a theme name when it is the *whole* style string - "bold grass" does
+not work, but a theme entry "key" = "bold #6abe30" does.
+"""
 
 from rich.theme import Theme
 
-from ..constants import Palette
+from .. import constants, edition
 
-GRASS = Palette.GRASS
-GRASS_L = Palette.GRASS_LIGHT
-GRASS_D = Palette.GRASS_DARK
-LEAF = Palette.LEAF
-DIRT = Palette.DIRT
-STONE = Palette.STONE
-GOLD = Palette.GOLD
-RED = Palette.REDSTONE
-WATER = Palette.WATER
-WHITE = Palette.WHITE
+GRASS = GRASS_L = GRASS_D = LEAF = DIRT = STONE = GOLD = RED = WATER = WHITE = ""
+RICH_THEME = None
+_pushed = False
 
-RICH_THEME = Theme({
-    "grass": GRASS,
-    "grass.light": GRASS_L,
-    "grass.dark": GRASS_D,
-    "leaf": LEAF,
-    "dirt": DIRT,
-    "stone": STONE,
-    "gold": GOLD,
-    "danger": RED,
-    "water": WATER,
-    "sev.critical": "bold #ff5c5c",
-    "sev.high": "bold #ff8a5c",
-    "sev.medium": GOLD,
-    "sev.low": "#a9c98f",
-    "sev.info": STONE,
-    "risk.critical": "bold #ff5c5c",
-    "risk.high": "bold #ff8a5c",
-    "risk.medium": GOLD,
-    "risk.low": "#a9c98f",
-    "risk.info": STONE,
-})
+
+def _build(p):
+    return Theme({
+        "grass": p["primary"],
+        "grass.light": p["light"],
+        "grass.dark": p["dark"],
+        "leaf": p["accent"],
+        "dirt": p["muted"],
+        "stone": p["dim"],
+        "gold": p["gold"],
+        "danger": p["red"],
+        "water": p["water"],
+        "key": "bold " + p["primary"],
+        "title": "bold " + p["light"],
+        "badge": "bold #0b0d10 on " + p["primary"],
+        "alert": "bold " + p["red"],
+        "warnhead": "bold " + p["gold"],
+        "sev.critical": "bold #ff5c5c",
+        "sev.high": "bold #ff8a5c",
+        "sev.medium": p["gold"],
+        "sev.low": "#a9c98f",
+        "sev.info": p["dim"],
+        "risk.critical": "bold #ff5c5c",
+        "risk.high": "bold #ff8a5c",
+        "risk.medium": p["gold"],
+        "risk.low": "#a9c98f",
+        "risk.info": p["dim"],
+    })
+
+
+def _load(p):
+    global GRASS, GRASS_L, GRASS_D, LEAF, DIRT, STONE, GOLD, RED, WATER, WHITE
+    global RICH_THEME
+    GRASS, GRASS_L, GRASS_D = p["primary"], p["light"], p["dark"]
+    LEAF, DIRT, STONE = p["accent"], p["muted"], p["dim"]
+    GOLD, RED, WATER, WHITE = p["gold"], p["red"], p["water"], p["text"]
+    RICH_THEME = _build(p)
+
+
+_load(edition.palette())
+
+
+def apply_palette(name):
+    """Switch the live colour theme (editions with themes). True on success."""
+    global _pushed
+    if not edition.set_palette(name):
+        return False
+    p = constants.refresh_palette()
+    _load(p)
+    from .console import console
+    if _pushed:
+        try:
+            console.pop_theme()
+        except Exception:
+            pass
+    console.push_theme(RICH_THEME)
+    _pushed = True
+    return True
+
 
 SEV_STYLE = {
     "critical": "sev.critical", "high": "sev.high", "medium": "sev.medium",
@@ -7819,16 +12589,6 @@ RISK_STYLE = {
     "critical": "risk.critical", "high": "risk.high", "medium": "risk.medium",
     "low": "risk.low", "info": "risk.info",
 }
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.utils
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.utils'] = r'''"""Low-level utility helpers used across SCANFY."""
-
-from . import netutils, textutils, concurrency
-
-__all__ = ["netutils", "textutils", "concurrency"]
 '''
 
 # ---------------------------------------------------------------------------
@@ -7856,20 +12616,40 @@ def parallel_map(func, items, max_workers=64, on_step=None, stop_event=None):
     results = []
     if not items:
         return results
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = [ex.submit(func, item) for item in items]
-        for fut in concurrent.futures.as_completed(futures):
+    # NOTE: a plain ``with ThreadPoolExecutor`` calls shutdown(wait=True) on exit,
+    # which waits for every *queued* task even after ``stop_event`` is set - so a
+    # big scan would appear to hang on stop. We also cannot block on
+    # ``as_completed`` (it only yields when a task finishes, so a batch of slow
+    # tasks would delay the stop check). Instead we poll completions on a short
+    # timeout, check ``stop_event`` each tick, and cancel still-pending futures
+    # on abort - so stop is responsive no matter how slow individual tasks are.
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+    aborted = False
+    try:
+        pending = set(ex.submit(func, item) for item in items)
+        while pending:
             if stop_event is not None and stop_event.is_set():
+                aborted = True
                 break
-            if on_step:
+            done, pending = concurrent.futures.wait(
+                pending, timeout=0.2,
+                return_when=concurrent.futures.FIRST_COMPLETED)
+            for fut in done:
+                if on_step:
+                    try:
+                        on_step()
+                    except Exception:
+                        pass
                 try:
-                    on_step()
+                    results.append(fut.result())
                 except Exception:
-                    pass
-            try:
-                results.append(fut.result())
-            except Exception:
-                results.append(None)
+                    results.append(None)
+    finally:
+        try:
+            ex.shutdown(wait=not aborted, cancel_futures=aborted)
+        except TypeError:
+            # Python < 3.9 has no cancel_futures kwarg.
+            ex.shutdown(wait=not aborted)
     return results
 
 
@@ -8097,6 +12877,11 @@ def normalize_mac(mac):
     mac = str(mac).strip().lower().replace("-", ":")
     if MAC_RE.match(mac):
         return mac
+    # macOS/BSD print octets without leading zeros: a4:b1:c1:0:11:22
+    parts = mac.split(":")
+    if len(parts) == 6 and all(1 <= len(p) <= 2 for p in parts) and \
+            all(c in "0123456789abcdef" for p in parts for c in p):
+        return ":".join(p.zfill(2) for p in parts)
     # try to normalise dotted cisco style aabb.ccdd.eeff
     hexonly = re.sub(r"[^0-9a-f]", "", mac)
     if len(hexonly) == 12:
@@ -8137,6 +12922,24 @@ def is_multicast_mac(mac):
 def looks_randomized(mac):
     """Heuristic: modern phones use locally-administered random MACs."""
     return is_locally_administered_mac(mac) and not is_multicast_mac(mac)
+
+
+def is_real_device(ip, mac):
+    """
+    True for an ARP-table row that is an actual unicast host: a valid IPv4 that
+    is not multicast/broadcast/loopback/unspecified, with a usable unicast MAC.
+    Filters out the 224.x / 239.x / x.x.x.255 / ff:ff:ff:ff:ff:ff entries the
+    OS keeps in its neighbour cache.
+    """
+    if not is_valid_ipv4(ip):
+        return False
+    ip = str(ip)
+    if is_multicast_ip(ip) or is_broadcast(ip) or ip.startswith(("0.", "127.")):
+        return False
+    m = normalize_mac(mac)
+    if m in ("-", "ff:ff:ff:ff:ff:ff", "00:00:00:00:00:00"):
+        return False
+    return not is_multicast_mac(m)
 
 
 # ---------------------------------------------------------------------------
@@ -8352,95 +13155,82 @@ def safe_filename(name):
 '''
 
 # ---------------------------------------------------------------------------
-# module: scanfyx.vendors
+# module: scanfyx.utils.webfetch
 # ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.vendors'] = r'''"""
-MAC vendor resolution.
+SCANFY_MODULES['scanfyx.utils.webfetch'] = r'''"""
+Tiny HTTP GET helper shared by the online enrichment modules (KEV, NVD).
 
-Prefers the full IEEE database via ``mac-vendor-lookup`` and falls back to the
-embedded prefix table. IMPORTANT: ``mac-vendor-lookup`` drives an asyncio loop
-internally and is *not* thread-safe, so callers must resolve vendors serially
-(this module offers ``resolve_many`` which does exactly that) rather than from a
-thread pool.
+Prefers ``requests`` when it is installed (so proxies, gzip and TLS all behave
+like the rest of SCANFY) and falls back to the standard library otherwise, so
+the feature still works in a minimal ``pip install rich`` environment. Every
+function returns the payload or ``None`` and never raises: callers treat a
+failure as "enrichment unavailable" and carry on.
 """
 
-from . import constants
-from .data import oui_fallback
-from .logging_setup import get_logger
-from .utils import netutils
+import gzip
+import json as _json
+import urllib.error
+import urllib.request
+from urllib.parse import urlencode
 
-log = get_logger("vendors")
+from .. import constants
+from ..logging_setup import get_logger
 
-_mac_lookup = None
-if constants.HAS_MAC_VENDOR:
-    try:
-        from mac_vendor_lookup import MacLookup
-        _mac_lookup = MacLookup()
-    except Exception as exc:  # pragma: no cover
-        log.debug("MacLookup init failed: %s", exc)
-        _mac_lookup = None
+log = get_logger("utils.webfetch")
+
+DEFAULT_UA = "SCANFY/4 (network recon; local use)"
 
 
-def resolve(mac):
-    """Return a vendor name for a MAC, or 'unknown'/'-' as appropriate."""
-    mac = netutils.normalize_mac(mac)
-    if mac == "-":
-        return "-"
-    if _mac_lookup is not None:
+def fetch_bytes(url, timeout=10.0, headers=None, params=None):
+    """GET ``url`` and return the raw body as bytes, or None on any failure."""
+    hdrs = {"User-Agent": DEFAULT_UA, "Accept": "application/json"}
+    if headers:
+        hdrs.update(headers)
+
+    if constants.HAS_REQUESTS:
         try:
-            return _mac_lookup.lookup(mac)
-        except Exception:
-            pass
-    return oui_fallback.lookup(mac)
+            import requests
+            r = requests.get(url, params=params, headers=hdrs, timeout=timeout)
+            if r.status_code == 200:
+                return r.content
+            log.debug("fetch %s -> HTTP %s", url, r.status_code)
+            return None
+        except Exception as exc:
+            log.debug("requests fetch failed %s: %s", url, exc)
+            return None
 
-
-def resolve_many(macs):
-    """Resolve a collection of MACs serially. Returns {mac: vendor}."""
-    out = {}
-    for mac in set(macs):
-        out[mac] = resolve(mac)
-    return out
-
-
-def update_database():
-    """Refresh the local OUI database (requires internet)."""
-    if _mac_lookup is None:
-        return False
+    # Standard-library fallback.
     try:
-        _mac_lookup.update_vendors()
-        return True
+        full = url
+        if params:
+            sep = "&" if "?" in url else "?"
+            full = url + sep + urlencode(params)
+        req = urllib.request.Request(full, headers=hdrs)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if getattr(resp, "status", 200) not in (200, None):
+                return None
+            data = resp.read()
+            if (resp.headers.get("Content-Encoding") or "").lower() == "gzip":
+                try:
+                    data = gzip.decompress(data)
+                except Exception:
+                    pass
+            return data
     except Exception as exc:
-        log.debug("OUI update failed: %s", exc)
-        return False
+        log.debug("urllib fetch failed %s: %s", url, exc)
+        return None
 
 
-def device_hint(vendor):
-    return oui_fallback.device_hint_for_vendor(vendor)
-'''
-
-# ---------------------------------------------------------------------------
-# module: scanfyx.version
-# ---------------------------------------------------------------------------
-SCANFY_MODULES['scanfyx.version'] = r'''"""Version and build metadata for SCANFY."""
-
-__version__ = "4.0.0"
-
-VERSION = __version__
-BUILD = "grass-forge"
-CODENAME = "Minecraft Grass"
-
-# Semantic components, useful for comparisons / reports.
-VERSION_INFO = (4, 0, 0)
-
-# Human friendly banner subtitle.
-TAGLINE = "advanced network scanner · service fingerprinter · security dossier"
-
-# Project motto printed at the bottom of every dossier.
-MOTTO_EN = "Long live the Hackers of Brazil"
-MOTTO_PT = "Viva os Hacker do Brasil"
-
-# Minimum supported Python.
-MIN_PYTHON = (3, 8)
+def fetch_json(url, timeout=10.0, headers=None, params=None):
+    """GET ``url`` and parse the body as JSON, or return None on any failure."""
+    data = fetch_bytes(url, timeout=timeout, headers=headers, params=params)
+    if not data:
+        return None
+    try:
+        return _json.loads(data.decode("utf-8", "replace"))
+    except Exception as exc:
+        log.debug("json decode failed %s: %s", url, exc)
+        return None
 '''
 
 
